@@ -1,0 +1,6 @@
+out/
+node_modules/
+test-python/.venv/
+*.vsix
+.vscode-test/
+debug.log

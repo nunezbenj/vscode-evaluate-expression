@@ -1,0 +1,73 @@
+{
+  "name": "pycharm-evaluate",
+  "displayName": "PyCharm-like Evaluate Expression",
+  "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
+  "version": "1.0.0",
+  "publisher": "nunezbenj",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nunezbenj/vscode-evaluate-expression.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "keywords": [
+    "evaluate",
+    "expression",
+    "debug",
+    "pycharm",
+    "multi-line",
+    "python"
+  ],
+  "activationEvents": [
+    "onDebug"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "evaluate.openPanel",
+        "title": "Evaluate: Open Panel"
+      },
+      {
+        "command": "evaluate.runSelection",
+        "title": "Evaluate: Run Selection"
+      },
+      {
+        "command": "evaluate.addWatch",
+        "title": "Evaluate: Add Selection to Watches"
+      },
+      {
+        "command": "evaluate.refreshWatches",
+        "title": "Evaluate: Refresh Watches"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "evaluate.openPanel",
+        "key": "ctrl+alt+e",
+        "when": "debugState == 'stopped'"
+      },
+      {
+        "command": "evaluate.runSelection",
+        "key": "ctrl+alt+enter",
+        "when": "debugState == 'stopped' && editorHasSelection"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
