@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { EvalMode } from "./types";
-import { log } from "./log";
+import { log, logVerbose } from "./log";
 
 /**
  * Best-effort frame resolution. Prefers the cached stopped thread if
@@ -129,6 +129,7 @@ export async function evaluateInFrame(
 
     try {
         log("evaluateInFrame: sending to DAP", { expressionLen: expression.length, isStatementMode });
+        logVerbose("evaluateInFrame: full expression", { expression });
 
         const resp = await session.customRequest("evaluate", {
             expression,
@@ -137,6 +138,7 @@ export async function evaluateInFrame(
         });
 
         log("evaluateInFrame: DAP response", { result: resp.result, variablesReference: resp.variablesReference });
+        logVerbose("evaluateInFrame: full DAP response", resp);
 
         if (isStatementMode) {
             // Step 2: retrieve the result stored by the wrapper
@@ -147,6 +149,7 @@ export async function evaluateInFrame(
                     context: "watch",
                 });
                 log("evaluateInFrame: step2 __eval_result__", { result: resultResp.result });
+                logVerbose("evaluateInFrame: step2 full response", resultResp);
 
                 // Clean up
                 try {

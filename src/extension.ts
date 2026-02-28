@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { WebviewToExtension, ExtensionToWebview, WatchItem } from "./types";
 import { getBestFrameId, wrapPythonSnippet, evaluateInFrame } from "./dap";
-import { initLog, log, closeLog } from "./log";
+import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
 
 let panel: vscode.WebviewPanel | undefined;
 let lastStoppedThreadId: number | undefined;
@@ -17,7 +17,7 @@ let watches: WatchItem[] = [];
 let watchIdCounter = 0;
 
 export function activate(context: vscode.ExtensionContext) {
-    initLog(context.extensionPath);
+    initLog();
     log("activate() called");
 
     history = context.workspaceState.get<string[]>("evaluate.history", []);
@@ -65,6 +65,26 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand("evaluate.showLog", () => {
+            showLog();
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("evaluate.copyLog", async () => {
+            const contents = getLogContents();
+            if (!contents) {
+                vscode.window.showInformationMessage("No log data yet.");
+                return;
+            }
+            await vscode.env.clipboard.writeText(contents);
+            vscode.window.showInformationMessage(
+                "Debug log copied to clipboard. Paste it into a GitHub issue for bug reporting."
+            );
+        })
+    );
+
     // Track which thread last stopped so getBestFrameId can use it
     context.subscriptions.push(
         vscode.debug.onDidReceiveDebugSessionCustomEvent((e) => {
@@ -77,7 +97,12 @@ export function activate(context: vscode.ExtensionContext) {
     // Notify webview when debug state changes; auto-refresh watches on stop
     context.subscriptions.push(
         vscode.debug.onDidChangeActiveDebugSession((session) => {
-            log("onDidChangeActiveDebugSession", { active: !!session, evaluationInFlight });
+            log("onDidChangeActiveDebugSession", {
+                active: !!session,
+                type: session?.type,
+                name: session?.name,
+                evaluationInFlight,
+            });
             sendToWebview({ type: "debugStateChanged", active: !!session });
             if (!session) {
                 lastStoppedThreadId = undefined;
@@ -155,15 +180,18 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
         case "evaluate": {
             const session = vscode.debug.activeDebugSession;
             if (!session) {
+                const errMsg = "No active debug session. Start debugging and pause at a breakpoint first.";
+                showErrorWithLog(errMsg);
                 sendToWebview({
                     type: "evaluateError",
                     requestId: msg.requestId,
-                    error: "No active debug session.",
+                    error: errMsg,
                 });
                 return;
             }
 
             log("evaluate START", { requestId: msg.requestId, mode: msg.mode, codeLen: msg.code.length });
+            logVerbose("evaluate code", { code: msg.code });
             evaluationInFlight = true;
             if (evaluationCooldownTimer) {
                 clearTimeout(evaluationCooldownTimer);
@@ -173,7 +201,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 const frameId = await getBestFrameId(session, lastStoppedThreadId);
                 log("evaluate frameId resolved", { frameId, lastStoppedThreadId });
                 const wrapped = wrapPythonSnippet(msg.code, msg.mode);
-                log("evaluate wrapped code", { wrapped });
+                logVerbose("evaluate wrapped code", { wrapped });
                 const isStatementMode = msg.mode === "statements";
                 const evalResult = await evaluateInFrame(session, wrapped, frameId, isStatementMode);
                 log("evaluate DAP result", { evalResult });

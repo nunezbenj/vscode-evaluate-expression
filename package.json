@@ -2,7 +2,7 @@
   "name": "pycharm-evaluate",
   "displayName": "PyCharm-like Evaluate Expression",
   "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "nunezbenj",
   "repository": {
     "type": "git",
@@ -44,8 +44,26 @@
       {
         "command": "evaluate.refreshWatches",
         "title": "Evaluate: Refresh Watches"
+      },
+      {
+        "command": "evaluate.showLog",
+        "title": "Evaluate: Show Debug Log"
+      },
+      {
+        "command": "evaluate.copyLog",
+        "title": "Evaluate: Copy Debug Log to Clipboard"
       }
     ],
+    "configuration": {
+      "title": "Evaluate Expression",
+      "properties": {
+        "evaluate.verboseLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose logging for debugging. Logs full expression code and DAP responses to the Output channel."
+        }
+      }
+    },
     "keybindings": [
       {
         "command": "evaluate.openPanel",
