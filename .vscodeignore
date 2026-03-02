@@ -9,5 +9,6 @@ tsconfig.json
 **/*.ts
 debug.log
 generate_icon.py
+NEXT_STEPS.md
 images/icon.svg
 images/icon@2x.png

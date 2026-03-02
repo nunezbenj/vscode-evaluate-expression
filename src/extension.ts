@@ -36,10 +36,11 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor) {
                 return;
             }
-            const selection = editor.document.getText(editor.selection);
-            if (!selection) {
+            const rawSelection = editor.document.getText(editor.selection);
+            if (!rawSelection) {
                 return;
             }
+            const selection = dedent(rawSelection);
             openPanel(context);
             sendToWebview({ type: "historyEntry", code: selection, index: -1, total: history.length });
         })
@@ -300,8 +301,26 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
             break;
         }
 
+        case "modeChanged": {
+            context.workspaceState.update("evaluate.lastMode", msg.mode);
+            break;
+        }
+
+        case "contentChanged": {
+            context.workspaceState.update("evaluate.lastCode", msg.code);
+            break;
+        }
+
         case "getState": {
-            sendToWebview({ type: "state", watches, history });
+            const lastMode = context.workspaceState.get<string>("evaluate.lastMode");
+            const lastCode = context.workspaceState.get<string>("evaluate.lastCode");
+            sendToWebview({
+                type: "state",
+                watches,
+                history,
+                lastMode: lastMode as import("./types").EvalMode | undefined,
+                lastCode: lastCode,
+            });
             sendToWebview({
                 type: "debugStateChanged",
                 active: !!vscode.debug.activeDebugSession,
@@ -429,6 +448,19 @@ function getNonce(): string {
         nonce += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return nonce;
+}
+
+function dedent(code: string): string {
+    const lines = code.split("\n");
+    const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
+    if (nonEmptyLines.length === 0) {
+        return code;
+    }
+    const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)![0].length));
+    if (minIndent === 0) {
+        return code;
+    }
+    return lines.map((l) => l.slice(minIndent)).join("\n");
 }
 
 export function deactivate() {

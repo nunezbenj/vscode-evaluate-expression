@@ -2,7 +2,7 @@
   "name": "pycharm-evaluate",
   "displayName": "PyCharm-like Evaluate Expression",
   "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "icon": "images/icon.png",
   "publisher": "nunezbenj",
   "repository": {
@@ -55,6 +55,20 @@
         "title": "Evaluate: Copy Debug Log to Clipboard"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "evaluate.runSelection",
+          "when": "debugState == 'stopped' && editorHasSelection",
+          "group": "9_evaluate"
+        },
+        {
+          "command": "evaluate.addWatch",
+          "when": "debugState == 'stopped' && editorHasSelection",
+          "group": "9_evaluate"
+        }
+      ]
+    },
     "configuration": {
       "title": "Evaluate Expression",
       "properties": {
@@ -72,8 +86,18 @@
         "when": "debugState == 'stopped'"
       },
       {
+        "command": "evaluate.openPanel",
+        "key": "ctrl+shift+f8",
+        "when": "debugState == 'stopped'"
+      },
+      {
         "command": "evaluate.runSelection",
         "key": "ctrl+alt+enter",
+        "when": "debugState == 'stopped' && editorHasSelection"
+      },
+      {
+        "command": "evaluate.runSelection",
+        "key": "ctrl+shift+f9",
         "when": "debugState == 'stopped' && editorHasSelection"
       }
     ]

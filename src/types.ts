@@ -8,6 +8,8 @@ export type WebviewToExtension =
     | { command: "refreshWatches" }
     | { command: "historyPrev" }
     | { command: "historyNext" }
+    | { command: "modeChanged"; mode: EvalMode }
+    | { command: "contentChanged"; code: string }
     | { command: "getState" };
 
 // Extension -> Webview messages
@@ -17,7 +19,7 @@ export type ExtensionToWebview =
     | { type: "watchesUpdated"; watches: WatchItem[] }
     | { type: "historyEntry"; code: string; index: number; total: number }
     | { type: "debugStateChanged"; active: boolean }
-    | { type: "state"; watches: WatchItem[]; history: string[] };
+    | { type: "state"; watches: WatchItem[]; history: string[]; lastMode?: EvalMode; lastCode?: string };
 
 export interface WatchItem {
     id: string;

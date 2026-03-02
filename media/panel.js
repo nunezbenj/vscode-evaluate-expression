@@ -20,6 +20,7 @@
     let requestCounter = 0;
     let lastResultText = "";
     let lastResultClass = "result-output";
+    let contentDebounceTimer = null;
 
     function getMode() {
         const checked = document.querySelector('input[name="mode"]:checked');
@@ -73,6 +74,23 @@
             codeInput.value = codeInput.value.substring(0, start) + "    " + codeInput.value.substring(end);
             codeInput.selectionStart = codeInput.selectionEnd = start + 4;
         }
+    });
+
+    // --- Mode change persistence ---
+    document.querySelectorAll('input[name="mode"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+            vscode.postMessage({ command: "modeChanged", mode: getMode() });
+        });
+    });
+
+    // --- Content change persistence (debounced) ---
+    codeInput.addEventListener("input", () => {
+        if (contentDebounceTimer) {
+            clearTimeout(contentDebounceTimer);
+        }
+        contentDebounceTimer = setTimeout(() => {
+            vscode.postMessage({ command: "contentChanged", code: codeInput.value });
+        }, 500);
     });
 
     // --- History ---
@@ -199,6 +217,15 @@
 
             case "state":
                 renderWatches(msg.watches);
+                if (msg.lastMode) {
+                    const radio = document.querySelector(`input[name="mode"][value="${msg.lastMode}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                    }
+                }
+                if (msg.lastCode && !codeInput.value) {
+                    codeInput.value = msg.lastCode;
+                }
                 restoreResult();
                 break;
         }
