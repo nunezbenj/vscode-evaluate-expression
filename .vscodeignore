@@ -8,3 +8,6 @@ tsconfig.json
 **/*.map
 **/*.ts
 debug.log
+generate_icon.py
+images/icon.svg
+images/icon@2x.png

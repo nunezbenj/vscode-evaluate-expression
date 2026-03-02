@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2B5EA7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1A3A6E;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="screen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E1E2E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#11111B;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4FC3F7;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#4FC3F7;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect x="4" y="4" width="120" height="120" rx="20" ry="20" fill="url(#bg)" />
+  <rect x="4" y="4" width="120" height="120" rx="20" ry="20" fill="url(#glow)" />
+
+  <!-- Calculator body -->
+  <rect x="22" y="16" width="84" height="96" rx="8" ry="8" fill="#1B2838" stroke="#3D5A80" stroke-width="1.5" />
+
+  <!-- Screen area -->
+  <rect x="28" y="22" width="72" height="30" rx="4" ry="4" fill="url(#screen)" />
+
+  <!-- Code on screen: {x=} -->
+  <text x="34" y="34" font-family="Consolas, monospace" font-size="9" fill="#4FC3F7" font-weight="bold">&gt;&gt;&gt;</text>
+  <text x="34" y="46" font-family="Consolas, monospace" font-size="10" fill="#A6E3A1" font-weight="bold">f(x) = 42</text>
+
+  <!-- Buttons row 1 -->
+  <rect x="28" y="58" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="35.5" y="67" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">7</text>
+
+  <rect x="47" y="58" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="54.5" y="67" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">8</text>
+
+  <rect x="66" y="58" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="73.5" y="67" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">9</text>
+
+  <rect x="85" y="58" width="15" height="12" rx="2" ry="2" fill="#E6A52E" />
+  <text x="92.5" y="67" font-family="Consolas, monospace" font-size="8" fill="#1B2838" text-anchor="middle" font-weight="bold">+</text>
+
+  <!-- Buttons row 2 -->
+  <rect x="28" y="74" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="35.5" y="83" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">4</text>
+
+  <rect x="47" y="74" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="54.5" y="83" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">5</text>
+
+  <rect x="66" y="74" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="73.5" y="83" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">6</text>
+
+  <rect x="85" y="74" width="15" height="12" rx="2" ry="2" fill="#E6A52E" />
+  <text x="92.5" y="83" font-family="Consolas, monospace" font-size="8" fill="#1B2838" text-anchor="middle" font-weight="bold">=</text>
+
+  <!-- Buttons row 3 -->
+  <rect x="28" y="90" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="35.5" y="99" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">1</text>
+
+  <rect x="47" y="90" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="54.5" y="99" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">2</text>
+
+  <rect x="66" y="90" width="15" height="12" rx="2" ry="2" fill="#3D5A80" />
+  <text x="73.5" y="99" font-family="Consolas, monospace" font-size="8" fill="#CDD6F4" text-anchor="middle">3</text>
+
+  <rect x="85" y="90" width="15" height="12" rx="2" ry="2" fill="#4FC3F7" />
+  <text x="92.5" y="99.5" font-family="Consolas, monospace" font-size="7" fill="#1B2838" text-anchor="middle" font-weight="bold">{ }</text>
+
+  <!-- Play/run triangle overlay (bottom-right corner) -->
+  <circle cx="100" cy="104" r="14" fill="#4CAF50" />
+  <polygon points="95,96 95,112 108,104" fill="white" />
+</svg>
