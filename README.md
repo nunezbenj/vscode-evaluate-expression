@@ -14,9 +14,8 @@ VS Code's Debug Console only supports single-line expressions. If you're coming 
 
 > **Tip:** For the best experience, detach the panel into a floating window (see [Floating Window](#tip-floating-window) below).
 
-<!-- TODO: Replace with actual screenshot -->
-<!-- ![Evaluate Expression floating window](images/screenshot-floating.png) -->
-*Screenshot coming soon — see instructions below to take your own.*
+![Evaluate Expression floating window](images/screenshot-floating.png)
+
 
 ## Features
 
