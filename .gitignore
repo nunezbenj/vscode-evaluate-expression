@@ -4,3 +4,4 @@ test-python/.venv/
 *.vsix
 .vscode-test/
 debug.log
+NEXT_STEPS.md
