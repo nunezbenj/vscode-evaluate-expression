@@ -80,7 +80,7 @@ export function wrapSnippet(code: string, mode: EvalMode, sessionType: string): 
  * it, and stores the result so mutations to existing objects in the
  * paused frame work correctly.
  */
-function wrapPythonSnippet(code: string): string {
+export function wrapPythonSnippet(code: string): string {
     const normalized = normalizeWhitespace(code);
     const dedented = dedentCode(normalized);
     const lines = dedented.split("\n");
@@ -102,7 +102,7 @@ function wrapPythonSnippet(code: string): string {
  * Wraps multi-line JavaScript/TypeScript code in an IIFE so statements
  * produce a return value in Node.js / Chrome debuggers.
  */
-function wrapJavaScriptSnippet(code: string): string {
+export function wrapJavaScriptSnippet(code: string): string {
     const normalized = normalizeWhitespace(code);
     const lines = normalized.split("\n");
 
@@ -118,7 +118,7 @@ function wrapJavaScriptSnippet(code: string): string {
     return `(() => {\n${lines.join("\n")}\n})()`;
 }
 
-function normalizeWhitespace(code: string): string {
+export function normalizeWhitespace(code: string): string {
     return code
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
@@ -128,7 +128,7 @@ function normalizeWhitespace(code: string): string {
         .join("\n");
 }
 
-function dedentCode(code: string): string {
+export function dedentCode(code: string): string {
     const lines = code.split("\n");
     const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
     if (nonEmptyLines.length === 0) {
@@ -141,7 +141,7 @@ function dedentCode(code: string): string {
     return lines.map((l) => l.slice(minIndent)).join("\n");
 }
 
-function findLastNonEmptyLineIndex(lines: string[]): number {
+export function findLastNonEmptyLineIndex(lines: string[]): number {
     for (let i = lines.length - 1; i >= 0; i--) {
         if (lines[i].trim().length > 0) {
             return i;
@@ -158,7 +158,7 @@ const STATEMENT_PREFIXES = [
     "global ", "nonlocal ", "print(", "print (",
 ];
 
-function looksLikeBareExpression(line: string): boolean {
+export function looksLikeBareExpression(line: string): boolean {
     const trimmed = line.trimStart();
     if (trimmed.length === 0) {
         return false;
