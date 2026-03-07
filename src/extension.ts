@@ -492,7 +492,7 @@ function getNonce(): string {
     return nonce;
 }
 
-function dedent(code: string): string {
+export function dedent(code: string): string {
     const normalized = code.replace(/\t/g, "    ");
     const lines = normalized.split("\n");
     const nonEmptyLines = lines.filter((l) => l.trim().length > 0);

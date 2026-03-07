@@ -115,12 +115,16 @@
     "build:webview": "esbuild media/panel-src.js --bundle --outfile=media/panel.js --format=iife --platform=browser",
     "compile": "tsc -p ./ && npm run build:webview",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "test": "mocha"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.27.3",
+    "mocha": "^11.7.5",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.0"
   },
   "dependencies": {
