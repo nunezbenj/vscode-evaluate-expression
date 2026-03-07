@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { WebviewToExtension, ExtensionToWebview, WatchItem } from "./types";
-import { getBestFrameId, wrapPythonSnippet, evaluateInFrame } from "./dap";
+import { getBestFrameId, wrapSnippet, getLanguageForSessionType, evaluateInFrame } from "./dap";
 import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
+import { EvaluateCodeLensProvider } from "./codelens";
 
 let panel: vscode.WebviewPanel | undefined;
 let lastStoppedThreadId: number | undefined;
@@ -105,7 +106,12 @@ export function activate(context: vscode.ExtensionContext) {
                 evaluationInFlight,
             });
             sendToWebview({ type: "debugStateChanged", active: !!session });
-            if (!session) {
+            if (session) {
+                sendToWebview({
+                    type: "languageChanged",
+                    language: getLanguageForSessionType(session.type),
+                });
+            } else {
                 lastStoppedThreadId = undefined;
             }
         })
@@ -131,6 +137,26 @@ export function activate(context: vscode.ExtensionContext) {
                 };
             },
         })
+    );
+
+    const codeLensProvider = new EvaluateCodeLensProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCodeLensProvider(
+            [
+                { language: "python" },
+                { language: "javascript" },
+                { language: "typescript" },
+                { language: "javascriptreact" },
+                { language: "typescriptreact" },
+                { language: "c" },
+                { language: "cpp" },
+                { language: "csharp" },
+                { language: "go" },
+                { language: "rust" },
+                { language: "java" },
+            ],
+            codeLensProvider
+        )
     );
 }
 
@@ -174,6 +200,14 @@ function openPanel(context: vscode.ExtensionContext) {
         type: "debugStateChanged",
         active: !!vscode.debug.activeDebugSession,
     });
+
+    const activeSession = vscode.debug.activeDebugSession;
+    if (activeSession) {
+        sendToWebview({
+            type: "languageChanged",
+            language: getLanguageForSessionType(activeSession.type),
+        });
+    }
 }
 
 async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.ExtensionContext) {
@@ -201,10 +235,11 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
             try {
                 const frameId = await getBestFrameId(session, lastStoppedThreadId);
                 log("evaluate frameId resolved", { frameId, lastStoppedThreadId });
-                const wrapped = wrapPythonSnippet(msg.code, msg.mode);
+                const wrapped = wrapSnippet(msg.code, msg.mode, session.type);
                 logVerbose("evaluate wrapped code", { wrapped });
-                const isStatementMode = msg.mode === "statements";
-                const evalResult = await evaluateInFrame(session, wrapped, frameId, isStatementMode);
+                const isPythonStatementMode = msg.mode === "statements"
+                    && getLanguageForSessionType(session.type) === "python";
+                const evalResult = await evaluateInFrame(session, wrapped, frameId, isPythonStatementMode);
                 log("evaluate DAP result", { evalResult });
 
                 // Save to history
@@ -325,6 +360,13 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 type: "debugStateChanged",
                 active: !!vscode.debug.activeDebugSession,
             });
+            const currentSession = vscode.debug.activeDebugSession;
+            if (currentSession) {
+                sendToWebview({
+                    type: "languageChanged",
+                    language: getLanguageForSessionType(currentSession.type),
+                });
+            }
             break;
         }
     }
@@ -389,7 +431,7 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+          content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <link rel="stylesheet" href="${cssUri}">
     <title>Evaluate Expression</title>
 </head>
@@ -412,7 +454,7 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                 </label>
                 <span class="history-info" id="historyInfo"></span>
             </div>
-            <textarea id="codeInput" rows="8" placeholder="Enter code to evaluate..."></textarea>
+            <div id="codeInput" class="code-editor"></div>
             <div class="button-bar">
                 <button id="btnEvaluate" class="primary">Evaluate</button>
                 <button id="btnHistoryPrev" title="Previous (Up)">&#9650;</button>
@@ -451,14 +493,15 @@ function getNonce(): string {
 }
 
 function dedent(code: string): string {
-    const lines = code.split("\n");
+    const normalized = code.replace(/\t/g, "    ");
+    const lines = normalized.split("\n");
     const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
     if (nonEmptyLines.length === 0) {
-        return code;
+        return normalized;
     }
     const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)![0].length));
     if (minIndent === 0) {
-        return code;
+        return normalized;
     }
     return lines.map((l) => l.slice(minIndent)).join("\n");
 }

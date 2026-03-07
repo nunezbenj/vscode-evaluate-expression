@@ -19,15 +19,17 @@ VS Code's Debug Console only supports single-line expressions. If you're coming 
 
 ## Features
 
+- **Syntax-highlighted code editor** — CodeMirror 6 with Python/JavaScript highlighting, line numbers, auto-indent, and bracket matching
 - **Multi-line code editor** — evaluate many lines at once, not just single expressions
 - **Statement mode** — automatically wraps code in a function so `return`, loops, and multi-line logic work
 - **Expression mode** — evaluate a single expression as-is
+- **Multi-language support** — Python, JavaScript/TypeScript (Node.js, Chrome), and generic DAP debuggers; CodeMirror language mode switches automatically
+- **CodeLens integration** — "Evaluate Selection" and "Add to Watches" links appear above selected code during debugging
 - **Watches** — add expressions to a watch list that auto-refreshes when the debugger stops
 - **History** — navigate through previous evaluations with Alt+Up/Down
 - **Right-click context menu** — select code, right-click → "Evaluate: Run Selection" during debugging
 - **Persistent preferences** — remembers your last mode (Statements/Expression) and code between sessions
 - **Debug logging** — built-in diagnostic log for easy bug reporting
-- **Works with any DAP debugger** — primary target is Python (debugpy), but the DAP protocol works with other languages too
 
 ## Usage
 
@@ -98,6 +100,15 @@ npm run compile
 - A debug adapter that supports the DAP `evaluate` request (e.g., Python + debugpy)
 
 ## Changelog
+
+### v1.3.0
+- **New:** Syntax-highlighted code editor powered by CodeMirror 6 (Python highlighting, line numbers, auto-indent, bracket matching)
+- **New:** Multi-language support — JavaScript/TypeScript wrapping (IIFE) for Node.js/Chrome debuggers; language auto-detection from debug session type
+- **New:** CodeLens integration — "Evaluate Selection" and "Add to Watches" links appear inline above selected code during debugging (configurable via `evaluate.showCodeLens`)
+- **New:** CodeMirror language mode switches automatically to match the active debugger (Python, JavaScript/TypeScript)
+- **Fix:** `IndentationError` on multi-line statements in Statements mode (whitespace normalization and auto-dedent)
+- **Fix:** Over-indented code from "Evaluate Selection" now correctly dedented (tab normalization)
+- **Fix:** `return` injection no longer breaks indentation when last line is inside a nested block (e.g. `for`/`if`/`while`)
 
 ### v1.1.0
 - **Fix:** Added fallback keybindings (`Ctrl+Shift+F8`, `Ctrl+Shift+F9`) for Remote-SSH compatibility

@@ -86,23 +86,19 @@ body {
     opacity: 0.6;
 }
 
-textarea {
+.code-editor {
     width: 100%;
     min-height: 120px;
+    overflow: auto;
     resize: vertical;
-    background: var(--input-bg);
-    color: var(--input-fg);
-    border: 1px solid var(--input-border);
-    border-radius: 3px;
-    padding: 8px;
-    font-family: var(--vscode-editor-font-family, "Consolas", "Courier New", monospace);
-    font-size: var(--vscode-editor-font-size, 13px);
-    line-height: 1.5;
-    tab-size: 4;
 }
 
-textarea:focus {
-    outline: 1px solid var(--vscode-focusBorder);
+.code-editor .cm-editor {
+    min-height: 120px;
+}
+
+.code-editor .cm-scroller {
+    overflow: auto;
 }
 
 .button-bar {

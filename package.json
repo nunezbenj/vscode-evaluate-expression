@@ -2,7 +2,7 @@
   "name": "pycharm-evaluate",
   "displayName": "PyCharm-like Evaluate Expression",
   "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "icon": "images/icon.png",
   "publisher": "nunezbenj",
   "repository": {
@@ -22,7 +22,10 @@
     "debug",
     "pycharm",
     "multi-line",
-    "python"
+    "python",
+    "javascript",
+    "typescript",
+    "node"
   ],
   "activationEvents": [
     "onDebug"
@@ -76,6 +79,11 @@
           "type": "boolean",
           "default": false,
           "description": "Enable verbose logging for debugging. Logs full expression code and DAP responses to the Output channel."
+        },
+        "evaluate.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show 'Evaluate Selection' and 'Add to Watches' CodeLens links above selected code during debugging."
         }
       }
     },
@@ -104,13 +112,21 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "build:webview": "esbuild media/panel-src.js --bundle --outfile=media/panel.js --format=iife --platform=browser",
+    "compile": "tsc -p ./ && npm run build:webview",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
     "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.27.3",
     "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "codemirror": "^6.0.2"
   }
 }

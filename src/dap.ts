@@ -34,37 +34,111 @@ export async function getBestFrameId(
     }
 }
 
+const PYTHON_SESSION_TYPES = ["python", "debugpy"];
+const JS_SESSION_TYPES = ["node", "node2", "pwa-node", "pwa-chrome", "chrome", "pwa-msedge", "msedge"];
+
 /**
- * Wraps multi-line Python code in a function so statements (including
- * `return`) work inside debugpy's evaluate/repl context.
- *
- * In "expression" mode the code is returned as-is.
- *
- * Scoping note: new locals created inside the wrapper do NOT become
- * locals in the paused frame. Mutations to existing objects (e.g.
- * `self.next = None`) work well and are the primary use case.
+ * Maps a DAP session type to a CodeMirror language name.
  */
+export function getLanguageForSessionType(sessionType: string): string {
+    if (PYTHON_SESSION_TYPES.includes(sessionType)) {
+        return "python";
+    }
+    if (JS_SESSION_TYPES.includes(sessionType)) {
+        return "javascript";
+    }
+    if (sessionType === "cppdbg" || sessionType === "cppvsdbg") {
+        return "cpp";
+    }
+    return "python";
+}
+
 /**
- * Returns the code to send to DAP for statement mode.
- * The wrapper defines a function, calls it, and stores the result.
- * This is sent directly (not via exec()) so mutations to locals
- * in the paused frame work correctly.
+ * Wraps code for evaluation via DAP, dispatching to a language-specific
+ * wrapper based on the debug session type. In "expression" mode the
+ * code is always returned as-is regardless of language.
  */
-export function wrapPythonSnippet(code: string, mode: EvalMode): string {
+export function wrapSnippet(code: string, mode: EvalMode, sessionType: string): string {
     if (mode === "expression") {
         return code;
     }
 
-    const lines = code.split("\n");
+    const lang = getLanguageForSessionType(sessionType);
+    switch (lang) {
+        case "python":
+            return wrapPythonSnippet(code);
+        case "javascript":
+            return wrapJavaScriptSnippet(code);
+        default:
+            return code;
+    }
+}
+
+/**
+ * Wraps multi-line Python code in a function so statements work inside
+ * debugpy's evaluate/repl context. The wrapper defines a function, calls
+ * it, and stores the result so mutations to existing objects in the
+ * paused frame work correctly.
+ */
+function wrapPythonSnippet(code: string): string {
+    const normalized = normalizeWhitespace(code);
+    const dedented = dedentCode(normalized);
+    const lines = dedented.split("\n");
 
     const lastIdx = findLastNonEmptyLineIndex(lines);
     if (lastIdx >= 0 && looksLikeBareExpression(lines[lastIdx])) {
-        lines[lastIdx] = "return " + lines[lastIdx].trimStart();
+        const leadingSpaces = lines[lastIdx].match(/^\s*/)![0].length;
+        if (leadingSpaces === 0) {
+            lines[lastIdx] = "return " + lines[lastIdx];
+        }
     }
 
     const indented = lines.map((line) => "    " + line).join("\n");
 
     return `def __eval__():\n${indented}\n__eval_result__ = __eval__()`;
+}
+
+/**
+ * Wraps multi-line JavaScript/TypeScript code in an IIFE so statements
+ * produce a return value in Node.js / Chrome debuggers.
+ */
+function wrapJavaScriptSnippet(code: string): string {
+    const normalized = normalizeWhitespace(code);
+    const lines = normalized.split("\n");
+
+    const lastIdx = findLastNonEmptyLineIndex(lines);
+    if (lastIdx >= 0) {
+        const trimmed = lines[lastIdx].trimStart();
+        const isStatement = /^(var |let |const |if |for |while |switch |try |throw |return |class |function |import |export )/.test(trimmed);
+        if (!isStatement && !/[;{}]\s*$/.test(trimmed)) {
+            lines[lastIdx] = lines[lastIdx].replace(trimmed, "return " + trimmed);
+        }
+    }
+
+    return `(() => {\n${lines.join("\n")}\n})()`;
+}
+
+function normalizeWhitespace(code: string): string {
+    return code
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .replace(/\t/g, "    ")
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .join("\n");
+}
+
+function dedentCode(code: string): string {
+    const lines = code.split("\n");
+    const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
+    if (nonEmptyLines.length === 0) {
+        return code;
+    }
+    const minIndent = Math.min(...nonEmptyLines.map((l) => l.match(/^\s*/)![0].length));
+    if (minIndent === 0) {
+        return code;
+    }
+    return lines.map((l) => l.slice(minIndent)).join("\n");
 }
 
 function findLastNonEmptyLineIndex(lines: string[]): number {
