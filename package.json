@@ -2,7 +2,7 @@
   "name": "pycharm-evaluate",
   "displayName": "PyCharm-like Evaluate Expression",
   "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "icon": "images/icon.png",
   "publisher": "nunezbenj",
   "repository": {
@@ -84,6 +84,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show 'Evaluate Selection' and 'Add to Watches' CodeLens links above selected code during debugging."
+        },
+        "evaluate.autoRefreshVariables": {
+          "type": "boolean",
+          "default": true,
+          "description": "After an evaluation, refresh the Variables panel automatically (via a no-op Set Next Statement to the current line). Disable if your debug adapter misbehaves on goto requests."
         }
       }
     },

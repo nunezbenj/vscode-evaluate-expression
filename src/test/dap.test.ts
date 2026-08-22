@@ -292,3 +292,109 @@ describe("wrapJavaScriptSnippet", () => {
         assert.ok(result.includes("return x + 1"));
     });
 });
+
+// ---- v1.4.0: planner tests ----
+import { planPythonSnippet, prepareJavaScriptSnippet } from "../dap";
+
+describe("planPythonSnippet", () => {
+    it("single expression becomes empty body + tail", () => {
+        const p = planPythonSnippet("x + 1");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "");
+        assert.strictEqual(p.tail, "x + 1");
+    });
+
+    it("assignment-only snippet has no tail", () => {
+        const p = planPythonSnippet("x = 5\ny = x * 2");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "x = 5\ny = x * 2");
+        assert.strictEqual(p.tail, undefined);
+    });
+
+    it("statements ending in bare expression split into body + tail", () => {
+        const p = planPythonSnippet("x = 5\nx * 2");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "x = 5");
+        assert.strictEqual(p.tail, "x * 2");
+    });
+
+    it("trailing top-level return is stripped into tail", () => {
+        const p = planPythonSnippet("x = 5\nreturn x * 2");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "x = 5");
+        assert.strictEqual(p.tail, "x * 2");
+    });
+
+    it("mid-block top-level return falls back to wrapper", () => {
+        const p = planPythonSnippet("return 1\nx = 5");
+        assert.strictEqual(p.kind, "wrapper");
+        assert.ok(p.wrapped!.includes("def __eval__():"));
+    });
+
+    it("indented return without def falls back to wrapper", () => {
+        const p = planPythonSnippet("if x:\n    return 1\ny = 2");
+        assert.strictEqual(p.kind, "wrapper");
+    });
+
+    it("indented return inside user def stays direct", () => {
+        const p = planPythonSnippet("def f():\n    return 1\nf()");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.tail, "f()");
+    });
+
+    it("does not split tail when brackets are unbalanced", () => {
+        const code = "x = foo(\n    1,\n    2,\n)";
+        const p = planPythonSnippet(code);
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.tail, undefined);
+        assert.strictEqual(p.body, code);
+    });
+
+    it("does not split tail after line continuation", () => {
+        const p = planPythonSnippet("x = 1 + \\\n2");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.tail, undefined);
+    });
+
+    it("loop ending with expression splits correctly", () => {
+        const p = planPythonSnippet("for i in range(3):\n    total += i\ntotal");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "for i in range(3):\n    total += i");
+        assert.strictEqual(p.tail, "total");
+    });
+
+    it("indented final line is not split into tail", () => {
+        const p = planPythonSnippet("if x:\n    y = 1\n    y");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.tail, undefined);
+    });
+
+    it("dedents uniformly indented snippets", () => {
+        const p = planPythonSnippet("    x = 5\n    x");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body, "x = 5");
+        assert.strictEqual(p.tail, "x");
+    });
+
+    it("empty input yields empty direct plan", () => {
+        const p = planPythonSnippet("\n\n");
+        assert.strictEqual(p.kind, "direct");
+        assert.strictEqual(p.body ?? "", "");
+    });
+});
+
+describe("prepareJavaScriptSnippet", () => {
+    it("plain statements pass through unwrapped", () => {
+        assert.strictEqual(prepareJavaScriptSnippet("let x = 5;\nx * 2"), "let x = 5;\nx * 2");
+    });
+
+    it("top-level return without function gets IIFE", () => {
+        const out = prepareJavaScriptSnippet("return 42");
+        assert.ok(out.startsWith("(() => {"));
+    });
+
+    it("return inside user function stays unwrapped", () => {
+        const code = "function f() {\n    return 1;\n}\nf()";
+        assert.strictEqual(prepareJavaScriptSnippet(code), code);
+    });
+});
