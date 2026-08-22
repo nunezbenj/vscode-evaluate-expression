@@ -67,13 +67,19 @@ When paused at a breakpoint, select code in the editor and right-click to see:
 
 ## Scoping Note
 
-In **Statements mode**, code is wrapped in a function for execution. This means:
+In **Statements mode** (Python), code is executed directly in the paused frame via debugpy's repl/exec path. This means:
 - **Mutations to existing objects** (e.g., `self.next = None`) work as expected
-- **New local variables** created inside the snippet do NOT persist in the paused frame
+- **New variables** created in the snippet (e.g., `x = compute()`) **persist in the paused frame** and appear in the Variables panel — same behavior as PyCharm's Evaluate Expression
+- If the snippet ends with a bare expression, its value is shown as the result
+
+The only exception: snippets that use `return` for flow control mid-block (e.g., an early `return` inside an `if`) fall back to a function-wrapped execution, where new locals do not persist. A trailing `return expr` on the last line works fine — it's treated as "show me this value."
+
+For **JavaScript/TypeScript**, code runs like in the DevTools console: the last statement's completion value is shown, and declarations persist as far as the V8 debugger allows.
 
 ## Known Limitations
 
-- **Variables panel does not auto-refresh** after evaluating statements that mutate objects. VS Code does not expose an API for extensions to force-refresh the Variables panel without advancing execution. **Workaround:** after mutating a variable via the Evaluate panel, either step once (F10/F11) or type the variable name in the Debug Console to see the updated value.
+- **New locals don't persist when using mid-block `return`** (see Scoping Note above).
+- **Auto-refresh of the Variables panel** relies on the debug adapter supporting the DAP `goto` request (debugpy does). On adapters without it, refresh is skipped automatically — step once (F10) to see updated values, or disable via `evaluate.autoRefreshVariables`.
 
 ## Bug Reporting
 
@@ -100,6 +106,13 @@ npm run compile
 - A debug adapter that supports the DAP `evaluate` request (e.g., Python + debugpy)
 
 ## Changelog
+
+### v1.4.0
+- **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code is executed directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` shows up in Variables just like PyCharm
+- **New:** The **Variables panel auto-refreshes** after every evaluation. Implemented via a no-op DAP `goto` (Set Next Statement to the current line), which triggers a full VS Code refresh without advancing execution. Configurable via `evaluate.autoRefreshVariables`
+- **New:** Watches refresh automatically after evaluations that change program state
+- **Improved:** Trailing `return expr` in Statements mode is now treated as "show this value" and no longer forces the function wrapper
+- **Improved:** JavaScript statements run unwrapped (DevTools-console semantics) unless a top-level `return` requires the IIFE
 
 ### v1.3.0
 - **New:** Syntax-highlighted code editor powered by CodeMirror 6 (Python highlighting, line numbers, auto-indent, bracket matching)

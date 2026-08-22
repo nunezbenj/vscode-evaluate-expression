@@ -75,10 +75,113 @@ export function wrapSnippet(code: string, mode: EvalMode, sessionType: string): 
 }
 
 /**
+ * Execution plan for Python statements mode.
+ *
+ * "direct" is the preferred strategy: the statements are sent to debugpy's
+ * repl context unwrapped. debugpy execs them against a merged copy of the
+ * frame's globals+locals and writes the changes back into the real frame
+ * (pydevd's update_globals_and_locals / save_locals), so NEW variables
+ * persist in the paused frame — not just mutations to existing objects.
+ * If the snippet ends with a bare expression, it is split off as `tail`
+ * and evaluated separately so its value can be shown (PyCharm behavior).
+ *
+ * "wrapper" is a legacy fallback used only when the snippet uses `return`
+ * for flow control in a way that is not valid at module level. It wraps
+ * the code in a function, which supports `return` but cannot persist new
+ * locals into the frame.
+ */
+export interface PythonEvalPlan {
+    kind: "direct" | "wrapper";
+    /** direct: statements to exec (may be empty if the snippet is a single expression) */
+    body?: string;
+    /** direct: trailing bare expression whose value should be shown */
+    tail?: string;
+    /** wrapper: fully wrapped legacy snippet */
+    wrapped?: string;
+}
+
+function bracketsBalanced(code: string): boolean {
+    // Heuristic: ignores brackets inside string literals. A wrong answer
+    // only means we skip the tail-expression split, which is safe.
+    let depth = 0;
+    for (const ch of code) {
+        if (ch === "(" || ch === "[" || ch === "{") { depth++; }
+        else if (ch === ")" || ch === "]" || ch === "}") { depth--; }
+    }
+    return depth === 0;
+}
+
+/**
+ * Analyzes a Python statements-mode snippet and decides how to execute it.
+ */
+export function planPythonSnippet(code: string): PythonEvalPlan {
+    const normalized = normalizeWhitespace(code);
+    const dedented = dedentCode(normalized);
+    const lines = dedented.split("\n");
+    const lastIdx = findLastNonEmptyLineIndex(lines);
+    if (lastIdx < 0) {
+        return { kind: "direct", body: "" };
+    }
+
+    const topLevelReturns = lines
+        .map((l, i) => ({ l, i }))
+        .filter(({ l }) => /^return\b/.test(l))
+        .map(({ i }) => i);
+    const hasIndentedReturn = lines.some((l) => /^\s+return\b/.test(l));
+    const definesFunction = lines.some((l) => /^\s*(def |async def |class )|lambda/.test(l));
+
+    // `return` used for flow control (early return inside an if/for, or an
+    // indented return outside any user-defined function) cannot run at
+    // module level → fall back to the legacy function wrapper.
+    const midBlockTopLevelReturn = topLevelReturns.some((i) => i !== lastIdx);
+    if (midBlockTopLevelReturn || (hasIndentedReturn && !definesFunction)) {
+        return { kind: "wrapper", wrapped: wrapPythonSnippet(code) };
+    }
+
+    const lastLine = lines[lastIdx];
+    const lastAtTopLevel = lastLine.match(/^\s*/)![0].length === 0;
+    const bodyBefore = lines.slice(0, lastIdx).join("\n");
+    const prevEndsWithContinuation = /\\\s*$/.test(bodyBefore.trimEnd());
+    const canSplit = lastAtTopLevel && bracketsBalanced(bodyBefore) && !prevEndsWithContinuation;
+
+    // Trailing `return <expr>` at top level: treat as "show me this value".
+    if (topLevelReturns.length === 1 && topLevelReturns[0] === lastIdx) {
+        const tail = lastLine.replace(/^return\b\s*/, "");
+        if (!canSplit) {
+            return { kind: "wrapper", wrapped: wrapPythonSnippet(code) };
+        }
+        return { kind: "direct", body: bodyBefore, tail: tail.length > 0 ? tail : undefined };
+    }
+
+    if (canSplit && looksLikeBareExpression(lastLine)) {
+        return { kind: "direct", body: bodyBefore, tail: lastLine };
+    }
+
+    return { kind: "direct", body: lines.join("\n") };
+}
+
+/**
+ * Prepares JavaScript statements-mode code. Raw code sent to the debugger
+ * behaves like the DevTools console: the completion value of the last
+ * statement is returned, and declarations persist as far as V8 allows.
+ * Only code that uses a top-level `return` (with no function of its own)
+ * needs the legacy IIFE wrapper.
+ */
+export function prepareJavaScriptSnippet(code: string): string {
+    const normalized = normalizeWhitespace(code);
+    const hasReturn = normalized.split("\n").some((l) => /^return\b/.test(l.trimStart()));
+    const definesFunction = /function\b|=>/.test(normalized);
+    if (hasReturn && !definesFunction) {
+        return wrapJavaScriptSnippet(code);
+    }
+    return normalized;
+}
+
+/**
  * Wraps multi-line Python code in a function so statements work inside
  * debugpy's evaluate/repl context. The wrapper defines a function, calls
  * it, and stores the result so mutations to existing objects in the
- * paused frame work correctly.
+ * paused frame work correctly. (Legacy path — see PythonEvalPlan.)
  */
 export function wrapPythonSnippet(code: string): string {
     const normalized = normalizeWhitespace(code);
@@ -180,6 +283,133 @@ export function looksLikeBareExpression(line: string): boolean {
 export interface EvalResult {
     result?: string;
     error?: string;
+}
+
+function formatExecResult(result: string | undefined): string {
+    if (result === undefined || result === "" || result === "None") {
+        return "(executed successfully)";
+    }
+    return result;
+}
+
+/**
+ * Executes a Python statements-mode plan.
+ *
+ * Direct plans exec the body in debugpy's repl context (new locals persist
+ * in the paused frame via pydevd's save_locals), then evaluate the trailing
+ * expression — also in repl context, so its side effects persist too — and
+ * report its value.
+ */
+export async function evaluatePythonPlan(
+    session: vscode.DebugSession,
+    plan: PythonEvalPlan,
+    frameId?: number
+): Promise<EvalResult> {
+    if (frameId === undefined) {
+        return { error: "No stack frame available. Pause at a breakpoint." };
+    }
+
+    if (plan.kind === "wrapper") {
+        log("evaluatePythonPlan: legacy wrapper path");
+        return evaluateInFrame(session, plan.wrapped!, frameId, true);
+    }
+
+    try {
+        let bodyResult: string | undefined;
+        const body = (plan.body ?? "").trim().length > 0 ? plan.body! : undefined;
+        if (body) {
+            log("evaluatePythonPlan: exec body", { bodyLen: body.length, hasTail: !!plan.tail });
+            logVerbose("evaluatePythonPlan: body", { body });
+            const resp = await session.customRequest("evaluate", {
+                expression: body,
+                frameId,
+                context: "repl",
+            });
+            bodyResult = resp?.result;
+        }
+
+        if (plan.tail !== undefined && plan.tail.trim().length > 0) {
+            log("evaluatePythonPlan: eval tail", { tail: plan.tail });
+            const tailResp = await session.customRequest("evaluate", {
+                expression: plan.tail,
+                frameId,
+                context: "repl",
+            });
+            return { result: formatExecResult(tailResp?.result) };
+        }
+
+        return { result: formatExecResult(bodyResult) };
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { error: msg };
+    }
+}
+
+// Sessions where the goto-based refresh has been observed to fail; skip
+// them instead of retrying on every evaluation.
+const gotoRefreshUnsupported = new Set<string>();
+
+/**
+ * Forces VS Code to refetch the Variables panel (and watches/call stack)
+ * after an evaluation mutated program state.
+ *
+ * VS Code offers no extension API for this: its variables view only
+ * refetches on UI-initiated repl input, UI-initiated setVariable, or DAP
+ * events (`stopped`/`invalidated`) that only the adapter can emit. The one
+ * adapter-side mechanism an extension can trigger is a `gotoTargets` →
+ * `goto` round-trip targeting the exact line we are already paused on
+ * (Set Next Statement to the current line). Execution does not move, but
+ * the adapter emits a real `stopped` event (reason "goto") and VS Code
+ * refreshes everything. debugpy supports this; adapters that don't are
+ * detected once and skipped thereafter.
+ *
+ * Returns true if the refresh round-trip was issued.
+ */
+export async function refreshVariablesPanel(
+    session: vscode.DebugSession,
+    lastStoppedThreadId?: number
+): Promise<boolean> {
+    if (gotoRefreshUnsupported.has(session.id)) {
+        return false;
+    }
+
+    try {
+        let threadId = lastStoppedThreadId;
+        if (threadId === undefined) {
+            const threadsResp = await session.customRequest("threads");
+            const threads: { id: number }[] = threadsResp?.threads ?? [];
+            if (threads.length === 0) {
+                return false;
+            }
+            threadId = threads[0].id;
+        }
+
+        const stackResp = await session.customRequest("stackTrace", { threadId, levels: 1 });
+        const frame = stackResp?.stackFrames?.[0];
+        if (!frame || !frame.source || typeof frame.line !== "number") {
+            return false;
+        }
+
+        const targetsResp = await session.customRequest("gotoTargets", {
+            source: frame.source,
+            line: frame.line,
+        });
+        const targets: { id: number; line: number }[] = targetsResp?.targets ?? [];
+        const target = targets.find((t) => t.line === frame.line);
+        if (!target) {
+            log("refreshVariablesPanel: no goto target for current line", { line: frame.line });
+            return false;
+        }
+
+        await session.customRequest("goto", { threadId, targetId: target.id });
+        log("refreshVariablesPanel: goto round-trip issued", { threadId, line: frame.line });
+        return true;
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        log("refreshVariablesPanel: unsupported for this session, disabling", { error: msg });
+        gotoRefreshUnsupported.add(session.id);
+        return false;
+    }
 }
 
 /**

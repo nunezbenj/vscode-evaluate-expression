@@ -1,7 +1,15 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { WebviewToExtension, ExtensionToWebview, WatchItem } from "./types";
-import { getBestFrameId, wrapSnippet, getLanguageForSessionType, evaluateInFrame } from "./dap";
+import {
+    getBestFrameId,
+    getLanguageForSessionType,
+    evaluateInFrame,
+    planPythonSnippet,
+    evaluatePythonPlan,
+    prepareJavaScriptSnippet,
+    refreshVariablesPanel,
+} from "./dap";
 import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
 import { EvaluateCodeLensProvider } from "./codelens";
 
@@ -235,12 +243,35 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
             try {
                 const frameId = await getBestFrameId(session, lastStoppedThreadId);
                 log("evaluate frameId resolved", { frameId, lastStoppedThreadId });
-                const wrapped = wrapSnippet(msg.code, msg.mode, session.type);
-                logVerbose("evaluate wrapped code", { wrapped });
-                const isPythonStatementMode = msg.mode === "statements"
-                    && getLanguageForSessionType(session.type) === "python";
-                const evalResult = await evaluateInFrame(session, wrapped, frameId, isPythonStatementMode);
+                const lang = getLanguageForSessionType(session.type);
+                let evalResult;
+                if (msg.mode === "statements" && lang === "python") {
+                    const plan = planPythonSnippet(msg.code);
+                    log("evaluate python plan", { kind: plan.kind, hasTail: plan.tail !== undefined });
+                    evalResult = await evaluatePythonPlan(session, plan, frameId);
+                } else if (msg.mode === "statements" && lang === "javascript") {
+                    const prepared = prepareJavaScriptSnippet(msg.code);
+                    logVerbose("evaluate prepared js", { prepared });
+                    evalResult = await evaluateInFrame(session, prepared, frameId);
+                } else {
+                    evalResult = await evaluateInFrame(session, msg.code, frameId);
+                }
                 log("evaluate DAP result", { evalResult });
+
+                // Program state may have changed — force VS Code to refetch
+                // the Variables panel (no extension API exists; see
+                // refreshVariablesPanel). Watches are refreshed manually
+                // afterwards because the synthetic stopped event arrives
+                // while evaluationInFlight suppresses the automatic path.
+                const autoRefresh = vscode.workspace
+                    .getConfiguration("evaluate")
+                    .get<boolean>("autoRefreshVariables", true);
+                if (!evalResult.error && autoRefresh) {
+                    const refreshed = await refreshVariablesPanel(session, lastStoppedThreadId);
+                    if (refreshed) {
+                        setTimeout(() => refreshAllWatches(context), 150);
+                    }
+                }
 
                 // Save to history
                 if (!history.includes(msg.code)) {
