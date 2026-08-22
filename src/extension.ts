@@ -9,6 +9,7 @@ import {
     evaluatePythonPlan,
     prepareJavaScriptSnippet,
     refreshVariablesPanel,
+    cleanPythonTraceback,
 } from "./dap";
 import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
 import { EvaluateCodeLensProvider } from "./codelens";
@@ -284,7 +285,8 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 historyIndex = -1;
 
                 if (evalResult.error) {
-                    let errorText = evalResult.error;
+                    log("evaluate raw error", { requestId: msg.requestId, error: evalResult.error });
+                    let errorText = cleanPythonTraceback(evalResult.error);
                     if (msg.mode === "expression" && msg.code.includes("\n")) {
                         errorText += "\n\nHint: multi-line code usually needs Statements mode (toggle above the editor).";
                     }

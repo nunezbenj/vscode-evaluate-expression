@@ -349,6 +349,53 @@ export async function evaluatePythonPlan(
 // them instead of retrying on every evaluation.
 const gotoRefreshUnsupported = new Set<string>();
 
+const INTERNAL_FRAME_RE = /[\\/](_pydevd_bundle|pydevd|_vendored|debugpy)[\\/]|[\\/]pydevd\.py/;
+
+/**
+ * Strips debug-adapter-internal frames from a Python traceback so the
+ * panel shows only the user's code and the actual exception, PyCharm
+ * style. The unfiltered text should still be written to the debug log.
+ * Non-traceback errors are returned unchanged.
+ */
+export function cleanPythonTraceback(errorText: string): string {
+    if (!errorText.includes("Traceback (most recent call last):")) {
+        return errorText;
+    }
+
+    const lines = errorText.split("\n");
+    const out: string[] = [];
+    let skippingFrame = false;
+    let droppedFrames = 0;
+
+    for (const line of lines) {
+        if (/^\s*File "/.test(line)) {
+            skippingFrame = INTERNAL_FRAME_RE.test(line);
+            if (skippingFrame) {
+                droppedFrames++;
+                continue;
+            }
+            out.push(line);
+            continue;
+        }
+        // Continuation lines of a frame: source line and ^^^ markers
+        if (skippingFrame && (/^\s+\S/.test(line) || /^\s*[\^~\s]+$/.test(line))) {
+            continue;
+        }
+        skippingFrame = false;
+        out.push(line);
+    }
+
+    let cleaned = out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+
+    // If every frame was internal, drop the now-empty traceback header
+    // and keep just the exception itself.
+    cleaned = cleaned.replace(/Traceback \(most recent call last\):\s*\n(?=\S)(?!\s*File)/g, "");
+    if (droppedFrames > 0) {
+        cleaned += `\n\n(${droppedFrames} debugger-internal frame${droppedFrames === 1 ? "" : "s"} hidden — full traceback in the debug log)`;
+    }
+    return cleaned.trim();
+}
+
 /**
  * Forces VS Code to refetch the Variables panel (and watches/call stack)
  * after an evaluation mutated program state.
