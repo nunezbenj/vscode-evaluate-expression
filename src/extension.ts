@@ -284,11 +284,15 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 historyIndex = -1;
 
                 if (evalResult.error) {
-                    log("evaluate sending ERROR to webview", { requestId: msg.requestId, error: evalResult.error });
+                    let errorText = evalResult.error;
+                    if (msg.mode === "expression" && msg.code.includes("\n")) {
+                        errorText += "\n\nHint: multi-line code usually needs Statements mode (toggle above the editor).";
+                    }
+                    log("evaluate sending ERROR to webview", { requestId: msg.requestId, error: errorText });
                     sendToWebview({
                         type: "evaluateError",
                         requestId: msg.requestId,
-                        error: evalResult.error,
+                        error: errorText,
                     });
                 } else {
                     log("evaluate sending RESULT to webview", { requestId: msg.requestId, result: evalResult.result });

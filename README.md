@@ -108,6 +108,7 @@ npm run compile
 ## Changelog
 
 ### v1.4.0
+- **New:** **Smart paste** — code pasted into the panel is auto-dedented, so snippets copied from inside a function evaluate without IndentationErrors. A hint now points to Statements mode when multi-line code fails in Expression mode
 - **New:** **Evaluate button in the debug toolbar** — a calculator icon next to the step controls opens the Evaluate panel with one click, no keyboard shortcut needed (PyCharm-style discoverability)
 - **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code is executed directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` shows up in Variables just like PyCharm
 - **New:** The **Variables panel auto-refreshes** after every evaluation. Implemented via a no-op DAP `goto` (Set Next Statement to the current line), which triggers a full VS Code refresh without advancing execution. Configurable via `evaluate.autoRefreshVariables`

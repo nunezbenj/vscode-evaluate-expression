@@ -136,6 +136,48 @@ import { oneDark } from "@codemirror/theme-one-dark";
         }
     });
 
+    // Smart paste: code copied from an editor usually carries the leading
+    // indentation of its original context (e.g. inside a function body).
+    // Strip the common indent so the snippet is valid at top level, the way
+    // PyCharm's Evaluate dialog does. Only applies to multi-line pastes at
+    // a line start, so pasting a fragment mid-line is untouched.
+    function dedentText(text) {
+        const normalized = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ");
+        const lines = normalized.split("\n");
+        const nonEmpty = lines.filter((l) => l.trim().length > 0);
+        if (nonEmpty.length === 0) {
+            return normalized;
+        }
+        const minIndent = Math.min(...nonEmpty.map((l) => l.match(/^\s*/)[0].length));
+        if (minIndent === 0) {
+            return normalized;
+        }
+        return lines.map((l) => l.slice(minIndent)).join("\n");
+    }
+
+    const smartPaste = EditorView.domEventHandlers({
+        paste(event, view) {
+            const text = event.clipboardData && event.clipboardData.getData("text/plain");
+            if (!text || !text.includes("\n")) {
+                return false; // single-line paste: default behavior
+            }
+            const { from, to } = view.state.selection.main;
+            const line = view.state.doc.lineAt(from);
+            const beforeCursor = view.state.doc.sliceString(line.from, from);
+            if (beforeCursor.trim().length > 0) {
+                return false; // pasting mid-line: don't touch indentation
+            }
+            event.preventDefault();
+            const dedented = dedentText(text);
+            view.dispatch({
+                changes: { from, to, insert: dedented },
+                selection: { anchor: from + dedented.length },
+                scrollIntoView: true,
+            });
+            return true;
+        },
+    });
+
     const editorState = EditorState.create({
         doc: "",
         extensions: [
@@ -151,6 +193,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
             syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
             evaluateKeymap,
             keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+            smartPaste,
             contentChangeListener,
             EditorView.lineWrapping,
             EditorState.tabSize.of(4),

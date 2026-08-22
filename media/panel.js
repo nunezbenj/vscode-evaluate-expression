@@ -21017,6 +21017,41 @@
         }, 500);
       }
     });
+    function dedentText(text) {
+      const normalized = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ");
+      const lines = normalized.split("\n");
+      const nonEmpty = lines.filter((l) => l.trim().length > 0);
+      if (nonEmpty.length === 0) {
+        return normalized;
+      }
+      const minIndent = Math.min(...nonEmpty.map((l) => l.match(/^\s*/)[0].length));
+      if (minIndent === 0) {
+        return normalized;
+      }
+      return lines.map((l) => l.slice(minIndent)).join("\n");
+    }
+    const smartPaste = EditorView.domEventHandlers({
+      paste(event, view) {
+        const text = event.clipboardData && event.clipboardData.getData("text/plain");
+        if (!text || !text.includes("\n")) {
+          return false;
+        }
+        const { from, to } = view.state.selection.main;
+        const line = view.state.doc.lineAt(from);
+        const beforeCursor = view.state.doc.sliceString(line.from, from);
+        if (beforeCursor.trim().length > 0) {
+          return false;
+        }
+        event.preventDefault();
+        const dedented = dedentText(text);
+        view.dispatch({
+          changes: { from, to, insert: dedented },
+          selection: { anchor: from + dedented.length },
+          scrollIntoView: true
+        });
+        return true;
+      }
+    });
     const editorState = EditorState.create({
       doc: "",
       extensions: [
@@ -21032,6 +21067,7 @@
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         evaluateKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+        smartPaste,
         contentChangeListener,
         EditorView.lineWrapping,
         EditorState.tabSize.of(4)
