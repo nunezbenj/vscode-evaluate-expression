@@ -257,3 +257,9 @@ button:disabled {
     33% { content: ".."; }
     66% { content: "..."; }
 }
+
+/* CodeMirror placeholder (empty-editor hint) */
+.cm-placeholder {
+    color: var(--vscode-input-placeholderForeground, #7a7a7a) !important;
+    font-style: italic;
+}

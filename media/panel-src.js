@@ -1,4 +1,4 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, placeholder } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { defaultKeymap, indentWithTab, history, historyKeymap } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
@@ -194,6 +194,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
             evaluateKeymap,
             keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
             smartPaste,
+            placeholder("Type or paste code \u00b7 Ctrl+Enter to evaluate \u00b7 Alt+\u2191\u2193 history"),
             contentChangeListener,
             EditorView.lineWrapping,
             EditorState.tabSize.of(4),

@@ -108,6 +108,9 @@ npm run compile
 ## Changelog
 
 ### v1.4.0
+- **New:** **Cleaner error output** — debugger-internal frames (pydevd/debugpy) are hidden from tracebacks; you see your code and the exception, with the full trace in the debug log
+- **New:** **Auto-mode** — multi-line code automatically switches the panel to Statements mode, so pasted blocks just run
+- **New:** **Editor placeholder** showing the key shortcuts when the panel is empty
 - **New:** **Smart paste** — code pasted into the panel is auto-dedented, so snippets copied from inside a function evaluate without IndentationErrors. A hint now points to Statements mode when multi-line code fails in Expression mode
 - **New:** **Evaluate button in the debug toolbar** — a calculator icon next to the step controls opens the Evaluate panel with one click, no keyboard shortcut needed (PyCharm-style discoverability)
 - **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code is executed directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` shows up in Variables just like PyCharm
