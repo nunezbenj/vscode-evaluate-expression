@@ -24,9 +24,11 @@ VS Code's Debug Console only supports single-line expressions. If you're coming 
 
 ## Screenshot
 
-> **Tip:** For the best experience, detach the panel into a floating window (see [Floating Window](#tip-floating-window) below).
+Evaluating a multi-line snippet while paused at a breakpoint: the new variable `total` **persists in the paused frame and appears in the Variables panel immediately**, and the trailing expression's value is shown as the result.
 
-![Evaluate Expression floating window](images/screenshot-floating.png)
+![Evaluate Expression panel: new variable persisted into the Variables panel](images/screenshot-floating.png)
+
+> **Tip:** For a PyCharm-style floating dialog, detach the panel into its own window — see [Floating Window](#tip-floating-window).
 
 
 ## Features
@@ -92,7 +94,8 @@ For **JavaScript/TypeScript**, code runs like in the DevTools console: the last 
 
 ## Known Limitations
 
-- **New locals don't persist when using mid-block `return`** (see Scoping Note above).
+- **Python:** new locals don't persist when the snippet uses `return` for mid-block flow control — that pattern falls back to a function-wrapped execution (see Scoping Note above). A trailing `return expr` is fine.
+- **JavaScript/TypeScript:** the V8 debugger does not allow adding *new* local variables to a paused frame; mutations to existing objects work, and declarations persist only as far as the runtime allows.
 - **Auto-refresh of the Variables panel** relies on the debug adapter supporting the DAP `goto` request (debugpy does). On adapters without it, refresh is skipped automatically — step once (F10) to see updated values, or disable via `evaluate.autoRefreshVariables`.
 
 ## Bug Reporting
