@@ -6,6 +6,18 @@
 
 A VS Code / Cursor extension that provides a **multi-line Evaluate Expression panel** for debugging, inspired by PyCharm's Evaluate Expression dialog.
 
+## What's New in 1.4.0 🎉
+
+The two biggest limitations are gone, plus a full UX polish pass:
+
+- **New variables persist** — `x = compute()` in Statements mode now shows up in the Variables panel, exactly like PyCharm. No more function-wrapper scoping surprises.
+- **Variables panel auto-refreshes** after every evaluation — mutations and new variables appear immediately, no stepping required.
+- **One-click access** — a calculator button in the debug toolbar opens the panel.
+- **Smart paste** — code copied from inside a function is auto-dedented and just runs.
+- **Auto-mode** — multi-line code switches to Statements mode automatically.
+- **Cleaner errors** — debugger-internal frames are hidden from tracebacks.
+- **Resizable layout** — drag the divider between code and Result; separate Clear Code / Clear Result buttons; shortcut hints in the empty editor.
+
 ## Why This Extension?
 
 VS Code's Debug Console only supports single-line expressions. If you're coming from PyCharm, you know how powerful it is to evaluate multi-line code blocks — loops, conditionals, function calls — all at once while paused at a breakpoint. This extension brings that workflow to VS Code and Cursor.
@@ -19,22 +31,24 @@ VS Code's Debug Console only supports single-line expressions. If you're coming 
 
 ## Features
 
-- **Syntax-highlighted code editor** — CodeMirror 6 with Python/JavaScript highlighting, line numbers, auto-indent, and bracket matching
-- **Multi-line code editor** — evaluate many lines at once, not just single expressions
-- **Statement mode** — automatically wraps code in a function so `return`, loops, and multi-line logic work
-- **Expression mode** — evaluate a single expression as-is
-- **Multi-language support** — Python, JavaScript/TypeScript (Node.js, Chrome), and generic DAP debuggers; CodeMirror language mode switches automatically
-- **CodeLens integration** — "Evaluate Selection" and "Add to Watches" links appear above selected code during debugging
-- **Watches** — add expressions to a watch list that auto-refreshes when the debugger stops
-- **History** — navigate through previous evaluations with Alt+Up/Down
-- **Right-click context menu** — select code, right-click → "Evaluate: Run Selection" during debugging
-- **Persistent preferences** — remembers your last mode (Statements/Expression) and code between sessions
+- **Multi-line evaluation in the paused frame** — run loops, conditionals, and whole blocks at a breakpoint; new variables and mutations persist and appear in the Variables panel
+- **Variables, Watches, and Call Stack auto-refresh** after each evaluation (configurable via `evaluate.autoRefreshVariables`)
+- **Debug-toolbar button** — one-click access next to the step controls
+- **Syntax-highlighted editor** — CodeMirror 6 with Python/JavaScript highlighting, line numbers, auto-indent, bracket matching, and smart paste (auto-dedent)
+- **Statements & Expression modes** — with automatic switching for multi-line code
+- **Resizable panes** — drag the divider between the code editor and Result (double-click to reset; size is remembered)
+- **Clean error output** — your exception and your frames, without debugger internals (full traceback in the debug log)
+- **Multi-language support** — Python (debugpy), JavaScript/TypeScript (Node.js, Chrome), and generic DAP debuggers
+- **CodeLens & context menu** — "Evaluate Selection" and "Add to Watches" on selected code during debugging
+- **Watches** — expression list that refreshes when the debugger stops and after evaluations
+- **History** — navigate previous evaluations with Alt+Up/Down
+- **Persistent preferences** — remembers mode, code, and layout between sessions
 - **Debug logging** — built-in diagnostic log for easy bug reporting
 
 ## Usage
 
 1. Start a debug session and pause at a breakpoint
-2. Open the Evaluate panel: `Ctrl+Alt+E` (or Command Palette → "Evaluate: Open Panel")
+2. Open the Evaluate panel: click the **calculator button** in the debug toolbar (or `Ctrl+Alt+E`, or Command Palette → "Evaluate: Open Panel")
 3. Type multi-line code in the editor
 4. Click **Evaluate** (or press `Ctrl+Enter`)
 5. See the result in the output area
@@ -108,19 +122,19 @@ npm run compile
 ## Changelog
 
 ### v1.4.0
-- **New:** **Draggable divider** between the code editor and Result — reallocate space between them PyCharm-style; double-click to reset, size remembered
-- **New:** Separate **Clear Code** and **Clear Result** buttons — clear the editor or the output independently
-- **Improved:** The code editor is now a **stable, user-resizable box** (content scrolls inside) — navigating history no longer resizes the panel and moves the buttons under your cursor. Your dragged size is remembered
-- **New:** **Cleaner error output** — debugger-internal frames (pydevd/debugpy) are hidden from tracebacks; you see your code and the exception, with the full trace in the debug log
-- **New:** **Auto-mode** — multi-line code automatically switches the panel to Statements mode, so pasted blocks just run
-- **New:** **Editor placeholder** showing the key shortcuts when the panel is empty
-- **New:** **Smart paste** — code pasted into the panel is auto-dedented, so snippets copied from inside a function evaluate without IndentationErrors. A hint now points to Statements mode when multi-line code fails in Expression mode
-- **New:** **Evaluate button in the debug toolbar** — a calculator icon next to the step controls opens the Evaluate panel with one click, no keyboard shortcut needed (PyCharm-style discoverability)
-- **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code is executed directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` shows up in Variables just like PyCharm
-- **New:** The **Variables panel auto-refreshes** after every evaluation. Implemented via a no-op DAP `goto` (Set Next Statement to the current line), which triggers a full VS Code refresh without advancing execution. Configurable via `evaluate.autoRefreshVariables`
-- **New:** Watches refresh automatically after evaluations that change program state
-- **Improved:** Trailing `return expr` in Statements mode is now treated as "show this value" and no longer forces the function wrapper
+- **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code executes directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` appears in Variables just like PyCharm
+- **New:** The **Variables panel auto-refreshes** after every evaluation, via a no-op DAP `goto` (Set Next Statement to the current line) that triggers a full VS Code refresh without advancing execution. Configurable via `evaluate.autoRefreshVariables`; watches refresh too
+- **New:** **Evaluate button in the debug toolbar** — a calculator icon next to the step controls opens the panel with one click
+- **New:** **Smart paste** — multi-line pastes are auto-dedented, so snippets copied from inside a function evaluate without IndentationErrors
+- **New:** **Auto-mode** — multi-line code automatically switches the panel to Statements mode
+- **New:** **Cleaner error output** — debugger-internal frames (pydevd/debugpy) are hidden from tracebacks, with the full trace in the debug log
+- **New:** **Draggable divider** between the code editor and Result reallocates space between them; double-click resets; size is remembered
+- **New:** Separate **Clear Code** and **Clear Result** buttons
+- **New:** Shortcut hints shown as a placeholder in the empty editor
+- **Improved:** Stable editor height — content scrolls instead of resizing the panel during history navigation
+- **Improved:** Trailing `return expr` in Statements mode is treated as "show this value" and no longer forces the function wrapper
 - **Improved:** JavaScript statements run unwrapped (DevTools-console semantics) unless a top-level `return` requires the IIFE
+- **Fixed:** `package-lock.json` regenerated against the official npm registry (previously pinned to a mirror, breaking installs)
 
 ### v1.3.0
 - **New:** Syntax-highlighted code editor powered by CodeMirror 6 (Python highlighting, line numbers, auto-indent, bracket matching)
