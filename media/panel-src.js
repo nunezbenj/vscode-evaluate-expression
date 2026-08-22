@@ -206,6 +206,29 @@ import { oneDark } from "@codemirror/theme-one-dark";
         parent: codeInputEl,
     });
 
+    // The editor is a fixed-height, user-resizable box (PyCharm style):
+    // content scrolls inside it instead of resizing the panel, so the
+    // buttons below never move during history navigation. Remember the
+    // height the user drags it to across panel reloads.
+    const savedState = vscode.getState() || {};
+    if (typeof savedState.editorHeight === "number" && savedState.editorHeight >= 80) {
+        codeInputEl.style.height = savedState.editorHeight + "px";
+    }
+    if (typeof ResizeObserver !== "undefined") {
+        let heightSaveTimer;
+        new ResizeObserver(() => {
+            if (heightSaveTimer) {
+                clearTimeout(heightSaveTimer);
+            }
+            heightSaveTimer = setTimeout(() => {
+                const h = codeInputEl.offsetHeight;
+                if (h >= 80) {
+                    vscode.setState(Object.assign({}, vscode.getState() || {}, { editorHeight: h }));
+                }
+            }, 300);
+        }).observe(codeInputEl);
+    }
+
     function getEditorValue() {
         return editor.state.doc.toString();
     }
