@@ -21102,13 +21102,22 @@
       }
       const requestId = generateRequestId();
       pendingRequestId = requestId;
+      let mode = getMode();
+      if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+        const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
+        if (stmtRadio) {
+          stmtRadio.checked = true;
+          mode = "statements";
+          vscode.postMessage({ command: "modeChanged", mode });
+        }
+      }
       resultOutput.textContent = "Evaluating\u2026";
       resultOutput.className = "result-output loading";
       btnEvaluate.disabled = true;
       vscode.postMessage({
         command: "evaluate",
         code,
-        mode: getMode(),
+        mode,
         requestId
       });
     });

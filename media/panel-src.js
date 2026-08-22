@@ -241,6 +241,19 @@ import { oneDark } from "@codemirror/theme-one-dark";
         const requestId = generateRequestId();
         pendingRequestId = requestId;
 
+        // Auto-mode: multi-line code can't be a single expression — switch
+        // to Statements (visibly, so the toggle reflects what ran) the way
+        // PyCharm's dialog adapts when it expands to multi-line.
+        let mode = getMode();
+        if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+            const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
+            if (stmtRadio) {
+                stmtRadio.checked = true;
+                mode = "statements";
+                vscode.postMessage({ command: "modeChanged", mode: mode });
+            }
+        }
+
         resultOutput.textContent = "Evaluating\u2026";
         resultOutput.className = "result-output loading";
         btnEvaluate.disabled = true;
@@ -248,7 +261,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
         vscode.postMessage({
             command: "evaluate",
             code: code,
-            mode: getMode(),
+            mode: mode,
             requestId: requestId,
         });
     });
