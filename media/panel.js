@@ -12080,6 +12080,49 @@
   }, {
     decorations: (v) => v.decorations
   });
+  var Placeholder = class extends WidgetType {
+    constructor(content2) {
+      super();
+      this.content = content2;
+    }
+    toDOM(view) {
+      let wrap = document.createElement("span");
+      wrap.className = "cm-placeholder";
+      wrap.style.pointerEvents = "none";
+      wrap.appendChild(typeof this.content == "string" ? document.createTextNode(this.content) : typeof this.content == "function" ? this.content(view) : this.content.cloneNode(true));
+      wrap.setAttribute("aria-hidden", "true");
+      return wrap;
+    }
+    coordsAt(dom) {
+      let rects = dom.firstChild ? clientRectsFor(dom.firstChild) : [];
+      if (!rects.length)
+        return null;
+      let style = window.getComputedStyle(dom.parentNode);
+      let rect = flattenRect(rects[0], style.direction != "rtl");
+      let lineHeight = parseInt(style.lineHeight);
+      if (rect.bottom - rect.top > lineHeight * 1.5)
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.top + lineHeight };
+      return rect;
+    }
+    ignoreEvent() {
+      return false;
+    }
+  };
+  function placeholder(content2) {
+    let plugin = ViewPlugin.fromClass(class {
+      constructor(view) {
+        this.view = view;
+        this.placeholder = content2 ? Decoration.set([Decoration.widget({ widget: new Placeholder(content2), side: 1 }).range(0)]) : Decoration.none;
+      }
+      get decorations() {
+        return this.view.state.doc.length ? Decoration.none : this.placeholder;
+      }
+    }, { decorations: (v) => v.decorations });
+    return typeof content2 == "string" ? [
+      plugin,
+      EditorView.contentAttributes.of({ "aria-placeholder": content2 })
+    ] : plugin;
+  }
   var baseTheme = /* @__PURE__ */ EditorView.baseTheme({
     ".cm-tooltip": {
       zIndex: 500,
@@ -21017,6 +21060,41 @@
         }, 500);
       }
     });
+    function dedentText(text) {
+      const normalized = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ");
+      const lines = normalized.split("\n");
+      const nonEmpty = lines.filter((l) => l.trim().length > 0);
+      if (nonEmpty.length === 0) {
+        return normalized;
+      }
+      const minIndent = Math.min(...nonEmpty.map((l) => l.match(/^\s*/)[0].length));
+      if (minIndent === 0) {
+        return normalized;
+      }
+      return lines.map((l) => l.slice(minIndent)).join("\n");
+    }
+    const smartPaste = EditorView.domEventHandlers({
+      paste(event, view) {
+        const text = event.clipboardData && event.clipboardData.getData("text/plain");
+        if (!text || !text.includes("\n")) {
+          return false;
+        }
+        const { from, to } = view.state.selection.main;
+        const line = view.state.doc.lineAt(from);
+        const beforeCursor = view.state.doc.sliceString(line.from, from);
+        if (beforeCursor.trim().length > 0) {
+          return false;
+        }
+        event.preventDefault();
+        const dedented = dedentText(text);
+        view.dispatch({
+          changes: { from, to, insert: dedented },
+          selection: { anchor: from + dedented.length },
+          scrollIntoView: true
+        });
+        return true;
+      }
+    });
     const editorState = EditorState.create({
       doc: "",
       extensions: [
@@ -21032,6 +21110,8 @@
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         evaluateKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+        smartPaste,
+        placeholder("Type or paste code \xB7 Ctrl+Enter to evaluate \xB7 Alt+\u2191\u2193 history"),
         contentChangeListener,
         EditorView.lineWrapping,
         EditorState.tabSize.of(4)
@@ -21041,6 +21121,57 @@
       state: editorState,
       parent: codeInputEl
     });
+    const savedState = vscode.getState() || {};
+    if (typeof savedState.editorHeight === "number" && savedState.editorHeight >= 80) {
+      codeInputEl.style.height = savedState.editorHeight + "px";
+    }
+    function saveEditorHeight() {
+      const h = codeInputEl.offsetHeight;
+      if (h >= 80) {
+        vscode.setState(Object.assign({}, vscode.getState() || {}, { editorHeight: h }));
+      }
+    }
+    const splitterEl = document.getElementById("splitter");
+    if (splitterEl) {
+      let dragStartY = 0;
+      let dragStartHeight = 0;
+      const onSplitterMove = (ev) => {
+        const maxH = Math.max(120, window.innerHeight - 280);
+        const h = Math.min(maxH, Math.max(80, dragStartHeight + (ev.clientY - dragStartY)));
+        codeInputEl.style.height = h + "px";
+      };
+      const onSplitterUp = () => {
+        document.removeEventListener("pointermove", onSplitterMove);
+        document.removeEventListener("pointerup", onSplitterUp);
+        document.removeEventListener("pointercancel", onSplitterUp);
+        splitterEl.classList.remove("dragging");
+        document.body.classList.remove("splitter-dragging");
+        saveEditorHeight();
+      };
+      splitterEl.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        dragStartY = ev.clientY;
+        dragStartHeight = codeInputEl.offsetHeight;
+        splitterEl.classList.add("dragging");
+        document.body.classList.add("splitter-dragging");
+        document.addEventListener("pointermove", onSplitterMove);
+        document.addEventListener("pointerup", onSplitterUp);
+        document.addEventListener("pointercancel", onSplitterUp);
+      });
+      splitterEl.addEventListener("dblclick", () => {
+        codeInputEl.style.height = "200px";
+        saveEditorHeight();
+      });
+    }
+    if (typeof ResizeObserver !== "undefined") {
+      let heightSaveTimer;
+      new ResizeObserver(() => {
+        if (heightSaveTimer) {
+          clearTimeout(heightSaveTimer);
+        }
+        heightSaveTimer = setTimeout(saveEditorHeight, 300);
+      }).observe(codeInputEl);
+    }
     function getEditorValue() {
       return editor.state.doc.toString();
     }
@@ -21066,13 +21197,22 @@
       }
       const requestId = generateRequestId();
       pendingRequestId = requestId;
+      let mode = getMode();
+      if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+        const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
+        if (stmtRadio) {
+          stmtRadio.checked = true;
+          mode = "statements";
+          vscode.postMessage({ command: "modeChanged", mode });
+        }
+      }
       resultOutput.textContent = "Evaluating\u2026";
       resultOutput.className = "result-output loading";
       btnEvaluate.disabled = true;
       vscode.postMessage({
         command: "evaluate",
         code,
-        mode: getMode(),
+        mode,
         requestId
       });
     });
@@ -21105,6 +21245,14 @@
       lastResultText = "";
       lastResultClass = "result-output";
     });
+    const btnClearCode = document.getElementById("btnClearCode");
+    if (btnClearCode) {
+      btnClearCode.addEventListener("click", () => {
+        setEditorValue("");
+        vscode.postMessage({ command: "contentChanged", code: "" });
+        editor.focus();
+      });
+    }
     btnAddWatch.addEventListener("click", () => {
       const code = getEditorValue().trim();
       if (!code) {

@@ -35,7 +35,11 @@
     "commands": [
       {
         "command": "evaluate.openPanel",
-        "title": "Evaluate: Open Panel"
+        "title": "Evaluate: Open Panel",
+        "icon": {
+          "light": "media/icons/evaluate-light.svg",
+          "dark": "media/icons/evaluate-dark.svg"
+        }
       },
       {
         "command": "evaluate.runSelection",
@@ -59,6 +63,13 @@
       }
     ],
     "menus": {
+      "debug/toolBar": [
+        {
+          "command": "evaluate.openPanel",
+          "when": "inDebugMode",
+          "group": "navigation"
+        }
+      ],
       "editor/context": [
         {
           "command": "evaluate.runSelection",

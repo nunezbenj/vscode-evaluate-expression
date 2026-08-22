@@ -1,4 +1,4 @@
-import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, placeholder } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { defaultKeymap, indentWithTab, history, historyKeymap } from "@codemirror/commands";
 import { python } from "@codemirror/lang-python";
@@ -136,6 +136,48 @@ import { oneDark } from "@codemirror/theme-one-dark";
         }
     });
 
+    // Smart paste: code copied from an editor usually carries the leading
+    // indentation of its original context (e.g. inside a function body).
+    // Strip the common indent so the snippet is valid at top level, the way
+    // PyCharm's Evaluate dialog does. Only applies to multi-line pastes at
+    // a line start, so pasting a fragment mid-line is untouched.
+    function dedentText(text) {
+        const normalized = text.replace(/\r\n?/g, "\n").replace(/\t/g, "    ");
+        const lines = normalized.split("\n");
+        const nonEmpty = lines.filter((l) => l.trim().length > 0);
+        if (nonEmpty.length === 0) {
+            return normalized;
+        }
+        const minIndent = Math.min(...nonEmpty.map((l) => l.match(/^\s*/)[0].length));
+        if (minIndent === 0) {
+            return normalized;
+        }
+        return lines.map((l) => l.slice(minIndent)).join("\n");
+    }
+
+    const smartPaste = EditorView.domEventHandlers({
+        paste(event, view) {
+            const text = event.clipboardData && event.clipboardData.getData("text/plain");
+            if (!text || !text.includes("\n")) {
+                return false; // single-line paste: default behavior
+            }
+            const { from, to } = view.state.selection.main;
+            const line = view.state.doc.lineAt(from);
+            const beforeCursor = view.state.doc.sliceString(line.from, from);
+            if (beforeCursor.trim().length > 0) {
+                return false; // pasting mid-line: don't touch indentation
+            }
+            event.preventDefault();
+            const dedented = dedentText(text);
+            view.dispatch({
+                changes: { from, to, insert: dedented },
+                selection: { anchor: from + dedented.length },
+                scrollIntoView: true,
+            });
+            return true;
+        },
+    });
+
     const editorState = EditorState.create({
         doc: "",
         extensions: [
@@ -151,6 +193,8 @@ import { oneDark } from "@codemirror/theme-one-dark";
             syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
             evaluateKeymap,
             keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+            smartPaste,
+            placeholder("Type or paste code \u00b7 Ctrl+Enter to evaluate \u00b7 Alt+\u2191\u2193 history"),
             contentChangeListener,
             EditorView.lineWrapping,
             EditorState.tabSize.of(4),
@@ -161,6 +205,72 @@ import { oneDark } from "@codemirror/theme-one-dark";
         state: editorState,
         parent: codeInputEl,
     });
+
+    // The editor is a fixed-height, user-resizable box (PyCharm style):
+    // content scrolls inside it instead of resizing the panel, so the
+    // buttons below never move during history navigation. Remember the
+    // height the user drags it to across panel reloads.
+    const savedState = vscode.getState() || {};
+    if (typeof savedState.editorHeight === "number" && savedState.editorHeight >= 80) {
+        codeInputEl.style.height = savedState.editorHeight + "px";
+    }
+    function saveEditorHeight() {
+        const h = codeInputEl.offsetHeight;
+        if (h >= 80) {
+            vscode.setState(Object.assign({}, vscode.getState() || {}, { editorHeight: h }));
+        }
+    }
+
+    // Splitter: drag the divider between the editor and the Result area
+    // to reallocate space between them (PyCharm-style panes). Clamped so
+    // both areas keep a usable minimum; double-click resets; the corner
+    // resize handle still works as an alternative.
+    const splitterEl = document.getElementById("splitter");
+    if (splitterEl) {
+        let dragStartY = 0;
+        let dragStartHeight = 0;
+
+        const onSplitterMove = (ev) => {
+            const maxH = Math.max(120, window.innerHeight - 280);
+            const h = Math.min(maxH, Math.max(80, dragStartHeight + (ev.clientY - dragStartY)));
+            codeInputEl.style.height = h + "px";
+        };
+
+        const onSplitterUp = () => {
+            document.removeEventListener("pointermove", onSplitterMove);
+            document.removeEventListener("pointerup", onSplitterUp);
+            document.removeEventListener("pointercancel", onSplitterUp);
+            splitterEl.classList.remove("dragging");
+            document.body.classList.remove("splitter-dragging");
+            saveEditorHeight();
+        };
+
+        splitterEl.addEventListener("pointerdown", (ev) => {
+            ev.preventDefault();
+            dragStartY = ev.clientY;
+            dragStartHeight = codeInputEl.offsetHeight;
+            splitterEl.classList.add("dragging");
+            document.body.classList.add("splitter-dragging");
+            document.addEventListener("pointermove", onSplitterMove);
+            document.addEventListener("pointerup", onSplitterUp);
+            document.addEventListener("pointercancel", onSplitterUp);
+        });
+
+        splitterEl.addEventListener("dblclick", () => {
+            codeInputEl.style.height = "200px";
+            saveEditorHeight();
+        });
+    }
+
+    if (typeof ResizeObserver !== "undefined") {
+        let heightSaveTimer;
+        new ResizeObserver(() => {
+            if (heightSaveTimer) {
+                clearTimeout(heightSaveTimer);
+            }
+            heightSaveTimer = setTimeout(saveEditorHeight, 300);
+        }).observe(codeInputEl);
+    }
 
     function getEditorValue() {
         return editor.state.doc.toString();
@@ -198,6 +308,19 @@ import { oneDark } from "@codemirror/theme-one-dark";
         const requestId = generateRequestId();
         pendingRequestId = requestId;
 
+        // Auto-mode: multi-line code can't be a single expression — switch
+        // to Statements (visibly, so the toggle reflects what ran) the way
+        // PyCharm's dialog adapts when it expands to multi-line.
+        let mode = getMode();
+        if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+            const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
+            if (stmtRadio) {
+                stmtRadio.checked = true;
+                mode = "statements";
+                vscode.postMessage({ command: "modeChanged", mode: mode });
+            }
+        }
+
         resultOutput.textContent = "Evaluating\u2026";
         resultOutput.className = "result-output loading";
         btnEvaluate.disabled = true;
@@ -205,7 +328,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
         vscode.postMessage({
             command: "evaluate",
             code: code,
-            mode: getMode(),
+            mode: mode,
             requestId: requestId,
         });
     });
@@ -247,6 +370,15 @@ import { oneDark } from "@codemirror/theme-one-dark";
         lastResultText = "";
         lastResultClass = "result-output";
     });
+
+    const btnClearCode = document.getElementById("btnClearCode");
+    if (btnClearCode) {
+        btnClearCode.addEventListener("click", () => {
+            setEditorValue("");
+            vscode.postMessage({ command: "contentChanged", code: "" });
+            editor.focus();
+        });
+    }
 
     // --- Watches ---
     btnAddWatch.addEventListener("click", () => {

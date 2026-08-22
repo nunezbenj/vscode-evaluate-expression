@@ -294,7 +294,7 @@ describe("wrapJavaScriptSnippet", () => {
 });
 
 // ---- v1.4.0: planner tests ----
-import { planPythonSnippet, prepareJavaScriptSnippet } from "../dap";
+import { planPythonSnippet, prepareJavaScriptSnippet, cleanPythonTraceback } from "../dap";
 
 describe("planPythonSnippet", () => {
     it("single expression becomes empty body + tail", () => {
@@ -396,5 +396,46 @@ describe("prepareJavaScriptSnippet", () => {
     it("return inside user function stays unwrapped", () => {
         const code = "function f() {\n    return 1;\n}\nf()";
         assert.strictEqual(prepareJavaScriptSnippet(code), code);
+    });
+});
+
+describe("cleanPythonTraceback", () => {
+    const raw = [
+        "Traceback (most recent call last):",
+        '  File "c:\\Users\\bn408100\\.vscode\\extensions\\ms-python.debugpy-2026.6.0-win32-x64\\bundled\\libs\\debugpy\\_vendored\\pydevd\\_pydevd_bundle\\pydevd_comm.py", line 1245, in internal_evaluate_expression_json',
+        "    pydevd_vars.evaluate_expression(py_db, frame, expression, is_exec=True)",
+        '  File "c:\\...\\debugpy\\_vendored\\pydevd\\_pydevd_bundle\\pydevd_vars.py", line 369, in new_func',
+        "    return _run_with_unblock_threads(original_func, py_db, curr_thread, frame, expression, is_exec)",
+        "           ^^^^^^^^^^^^^^^^^^^^^^^^^",
+        '  File "<string>", line 2, in <module>',
+        "NameError: name 'foo' is not defined",
+    ].join("\n");
+
+    it("drops debugger-internal frames, keeps user frame and exception", () => {
+        const out = cleanPythonTraceback(raw);
+        assert.ok(!out.includes("pydevd_comm.py"));
+        assert.ok(!out.includes("_run_with_unblock_threads"));
+        assert.ok(!out.includes("^^^"));
+        assert.ok(out.includes('File "<string>", line 2'));
+        assert.ok(out.includes("NameError: name 'foo' is not defined"));
+        assert.ok(out.includes("2 debugger-internal frames hidden"));
+    });
+
+    it("returns non-traceback errors unchanged", () => {
+        assert.strictEqual(cleanPythonTraceback("SyntaxError: invalid syntax"), "SyntaxError: invalid syntax");
+        assert.strictEqual(cleanPythonTraceback("Timed out"), "Timed out");
+    });
+
+    it("keeps exception when all frames are internal", () => {
+        const allInternal = [
+            "Traceback (most recent call last):",
+            '  File "/x/debugpy/_vendored/pydevd/pydevd.py", line 1, in f',
+            "    do()",
+            "ZeroDivisionError: division by zero",
+        ].join("\n");
+        const out = cleanPythonTraceback(allInternal);
+        assert.ok(out.includes("ZeroDivisionError"));
+        assert.ok(!out.includes("pydevd.py"));
+        assert.ok(!out.startsWith("Traceback"));
     });
 });

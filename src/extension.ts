@@ -9,6 +9,7 @@ import {
     evaluatePythonPlan,
     prepareJavaScriptSnippet,
     refreshVariablesPanel,
+    cleanPythonTraceback,
 } from "./dap";
 import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
 import { EvaluateCodeLensProvider } from "./codelens";
@@ -284,11 +285,16 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 historyIndex = -1;
 
                 if (evalResult.error) {
-                    log("evaluate sending ERROR to webview", { requestId: msg.requestId, error: evalResult.error });
+                    log("evaluate raw error", { requestId: msg.requestId, error: evalResult.error });
+                    let errorText = cleanPythonTraceback(evalResult.error);
+                    if (msg.mode === "expression" && msg.code.includes("\n")) {
+                        errorText += "\n\nHint: multi-line code usually needs Statements mode (toggle above the editor).";
+                    }
+                    log("evaluate sending ERROR to webview", { requestId: msg.requestId, error: errorText });
                     sendToWebview({
                         type: "evaluateError",
                         requestId: msg.requestId,
-                        error: evalResult.error,
+                        error: errorText,
                     });
                 } else {
                     log("evaluate sending RESULT to webview", { requestId: msg.requestId, result: evalResult.result });
@@ -491,9 +497,12 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                 <button id="btnHistoryPrev" title="Previous (Up)">&#9650;</button>
                 <button id="btnHistoryNext" title="Next (Down)">&#9660;</button>
                 <button id="btnCopy" title="Copy Result">Copy</button>
-                <button id="btnClear" title="Clear Output">Clear</button>
+                <button id="btnClearCode" title="Clear the code editor">Clear Code</button>
+                <button id="btnClear" title="Clear the Result output">Clear Result</button>
             </div>
         </div>
+
+        <div id="splitter" class="splitter" title="Drag to resize code/result areas — double-click to reset"></div>
 
         <div class="result-section">
             <div class="section-header">Result</div>
