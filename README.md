@@ -1,5 +1,3 @@
-[![Version](https://img.shields.io/visual-studio-marketplace/v/nunezbenj.pycharm-evaluate)](https://marketplace.visualstudio.com/items?itemName=nunezbenj.pycharm-evaluate)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/nunezbenj.pycharm-evaluate)](https://marketplace.visualstudio.com/items?itemName=nunezbenj.pycharm-evaluate)
 [![License](https://img.shields.io/github/license/nunezbenj/vscode-evaluate-expression)](LICENSE)
 
 # PyCharm-like Evaluate Expression
