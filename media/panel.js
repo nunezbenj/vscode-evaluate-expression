@@ -21212,6 +21212,14 @@
       lastResultText = "";
       lastResultClass = "result-output";
     });
+    const btnClearCode = document.getElementById("btnClearCode");
+    if (btnClearCode) {
+      btnClearCode.addEventListener("click", () => {
+        setEditorValue("");
+        vscode.postMessage({ command: "contentChanged", code: "" });
+        editor.focus();
+      });
+    }
     btnAddWatch.addEventListener("click", () => {
       const code = getEditorValue().trim();
       if (!code) {

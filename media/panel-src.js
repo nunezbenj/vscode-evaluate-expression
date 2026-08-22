@@ -328,6 +328,15 @@ import { oneDark } from "@codemirror/theme-one-dark";
         lastResultClass = "result-output";
     });
 
+    const btnClearCode = document.getElementById("btnClearCode");
+    if (btnClearCode) {
+        btnClearCode.addEventListener("click", () => {
+            setEditorValue("");
+            vscode.postMessage({ command: "contentChanged", code: "" });
+            editor.focus();
+        });
+    }
+
     // --- Watches ---
     btnAddWatch.addEventListener("click", () => {
         const code = getEditorValue().trim();

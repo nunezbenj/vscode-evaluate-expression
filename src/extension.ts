@@ -497,7 +497,8 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                 <button id="btnHistoryPrev" title="Previous (Up)">&#9650;</button>
                 <button id="btnHistoryNext" title="Next (Down)">&#9660;</button>
                 <button id="btnCopy" title="Copy Result">Copy</button>
-                <button id="btnClear" title="Clear Output">Clear</button>
+                <button id="btnClearCode" title="Clear the code editor">Clear Code</button>
+                <button id="btnClear" title="Clear the Result output">Clear Result</button>
             </div>
         </div>
 
