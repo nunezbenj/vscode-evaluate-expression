@@ -214,18 +214,61 @@ import { oneDark } from "@codemirror/theme-one-dark";
     if (typeof savedState.editorHeight === "number" && savedState.editorHeight >= 80) {
         codeInputEl.style.height = savedState.editorHeight + "px";
     }
+    function saveEditorHeight() {
+        const h = codeInputEl.offsetHeight;
+        if (h >= 80) {
+            vscode.setState(Object.assign({}, vscode.getState() || {}, { editorHeight: h }));
+        }
+    }
+
+    // Splitter: drag the divider between the editor and the Result area
+    // to reallocate space between them (PyCharm-style panes). Clamped so
+    // both areas keep a usable minimum; double-click resets; the corner
+    // resize handle still works as an alternative.
+    const splitterEl = document.getElementById("splitter");
+    if (splitterEl) {
+        let dragStartY = 0;
+        let dragStartHeight = 0;
+
+        const onSplitterMove = (ev) => {
+            const maxH = Math.max(120, window.innerHeight - 280);
+            const h = Math.min(maxH, Math.max(80, dragStartHeight + (ev.clientY - dragStartY)));
+            codeInputEl.style.height = h + "px";
+        };
+
+        const onSplitterUp = () => {
+            document.removeEventListener("pointermove", onSplitterMove);
+            document.removeEventListener("pointerup", onSplitterUp);
+            document.removeEventListener("pointercancel", onSplitterUp);
+            splitterEl.classList.remove("dragging");
+            document.body.classList.remove("splitter-dragging");
+            saveEditorHeight();
+        };
+
+        splitterEl.addEventListener("pointerdown", (ev) => {
+            ev.preventDefault();
+            dragStartY = ev.clientY;
+            dragStartHeight = codeInputEl.offsetHeight;
+            splitterEl.classList.add("dragging");
+            document.body.classList.add("splitter-dragging");
+            document.addEventListener("pointermove", onSplitterMove);
+            document.addEventListener("pointerup", onSplitterUp);
+            document.addEventListener("pointercancel", onSplitterUp);
+        });
+
+        splitterEl.addEventListener("dblclick", () => {
+            codeInputEl.style.height = "200px";
+            saveEditorHeight();
+        });
+    }
+
     if (typeof ResizeObserver !== "undefined") {
         let heightSaveTimer;
         new ResizeObserver(() => {
             if (heightSaveTimer) {
                 clearTimeout(heightSaveTimer);
             }
-            heightSaveTimer = setTimeout(() => {
-                const h = codeInputEl.offsetHeight;
-                if (h >= 80) {
-                    vscode.setState(Object.assign({}, vscode.getState() || {}, { editorHeight: h }));
-                }
-            }, 300);
+            heightSaveTimer = setTimeout(saveEditorHeight, 300);
         }).observe(codeInputEl);
     }
 

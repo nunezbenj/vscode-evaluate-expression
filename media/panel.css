@@ -264,3 +264,33 @@ button:disabled {
     color: var(--vscode-input-placeholderForeground, #7a7a7a) !important;
     font-style: italic;
 }
+
+/* Splitter between editor and result (PyCharm-style pane divider) */
+.splitter {
+    height: 8px;
+    margin: 1px 0;
+    cursor: ns-resize;
+    position: relative;
+    flex: none;
+    touch-action: none;
+}
+.splitter::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 3px;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--vscode-scrollbarSlider-background, #5a5a5a);
+}
+.splitter:hover::after,
+.splitter.dragging::after {
+    background: var(--vscode-focusBorder, #007fd4);
+    width: 56px;
+}
+body.splitter-dragging {
+    cursor: ns-resize;
+    user-select: none;
+}

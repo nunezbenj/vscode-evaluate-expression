@@ -502,6 +502,8 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
             </div>
         </div>
 
+        <div id="splitter" class="splitter" title="Drag to resize code/result areas — double-click to reset"></div>
+
         <div class="result-section">
             <div class="section-header">Result</div>
             <pre id="resultOutput" class="result-output"></pre>

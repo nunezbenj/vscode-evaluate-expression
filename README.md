@@ -108,6 +108,7 @@ npm run compile
 ## Changelog
 
 ### v1.4.0
+- **New:** **Draggable divider** between the code editor and Result — reallocate space between them PyCharm-style; double-click to reset, size remembered
 - **New:** Separate **Clear Code** and **Clear Result** buttons — clear the editor or the output independently
 - **Improved:** The code editor is now a **stable, user-resizable box** (content scrolls inside) — navigating history no longer resizes the panel and moves the buttons under your cursor. Your dragged size is remembered
 - **New:** **Cleaner error output** — debugger-internal frames (pydevd/debugpy) are hidden from tracebacks; you see your code and the exception, with the full trace in the debug log
