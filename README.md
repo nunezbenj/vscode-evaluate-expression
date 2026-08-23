@@ -123,7 +123,7 @@ npm run compile
 ## Changelog
 
 ### v1.4.1
-- **Fixed:** A floating (detached) Evaluate window no longer drops behind the main window when you hit Evaluate — focus returns to the panel after the automatic Variables refresh
+- **Fixed:** A floating (detached) Evaluate window no longer drops behind the main window when you hit Evaluate — the panel re-asserts focus when the refresh's stop event is processed (with a late second pass), instead of racing it on a timer. For completely flicker-free behavior you can also set VS Code's `debug.focusWindowOnBreak` to `false`
 - **New:** Opt-out settings for the 1.4.0 automatics: `evaluate.autoModeSwitch` and `evaluate.smartPaste` (both on by default)
 - **Fixed:** The Evaluate button can no longer get stuck disabled if the debug session ends mid-evaluation
 - **Improved:** Editor placeholder shows Mac keybindings (⌘Enter / ⌥↑↓) on macOS

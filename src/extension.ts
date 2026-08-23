@@ -15,6 +15,11 @@ import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorW
 import { EvaluateCodeLensProvider } from "./codelens";
 
 let panel: vscode.WebviewPanel | undefined;
+// When our goto-based refresh is about to fire a synthetic stopped event
+// while the panel was the active (possibly floating) window, re-assert the
+// panel's focus when that event lands — the fixed-delay approach raced the
+// event and lost when evaluations were fast.
+let revealPanelOnStopUntil = 0;
 let lastStoppedThreadId: number | undefined;
 let evaluationInFlight = false;
 let evaluationCooldownTimer: ReturnType<typeof setTimeout> | undefined;
@@ -140,6 +145,22 @@ export function activate(context: vscode.ExtensionContext) {
                                 refreshAllWatches(context);
                             } else {
                                 log("Suppressed watch refresh (evaluation in flight)");
+                            }
+                            if (revealPanelOnStopUntil > Date.now()) {
+                                revealPanelOnStopUntil = 0;
+                                // VS Code focuses the main window while
+                                // processing this event; re-assert the panel
+                                // just after, with a second late pass in case
+                                // the OS-level focus change lands slowly.
+                                for (const delay of [150, 600]) {
+                                    setTimeout(() => {
+                                        try {
+                                            panel?.reveal(undefined, false);
+                                        } catch {
+                                            // panel disposed — ignore
+                                        }
+                                    }, delay);
+                                }
                             }
                         }
                     },
@@ -274,18 +295,16 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                     // the panel was active when the user evaluated, give it
                     // focus back once the stop has been processed.
                     const panelWasActive = panel?.active === true;
+                    if (panelWasActive) {
+                        // Arm before the goto so the stopped event can't win
+                        // the race; the tracker clears it on arrival.
+                        revealPanelOnStopUntil = Date.now() + 3000;
+                    }
                     const refreshed = await refreshVariablesPanel(session, lastStoppedThreadId);
-                    if (refreshed) {
+                    if (!refreshed) {
+                        revealPanelOnStopUntil = 0;
+                    } else {
                         setTimeout(() => refreshAllWatches(context), 150);
-                        if (panelWasActive) {
-                            setTimeout(() => {
-                                try {
-                                    panel?.reveal(undefined, false);
-                                } catch {
-                                    // panel disposed meanwhile — nothing to do
-                                }
-                            }, 250);
-                        }
                     }
                 }
 
