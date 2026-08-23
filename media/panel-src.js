@@ -9,6 +9,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 (function () {
     // @ts-ignore
     const vscode = acquireVsCodeApi();
+    const panelSettings = { autoModeSwitch: true, smartPaste: true };
 
     const codeInputEl = document.getElementById("codeInput");
     const resultOutput = document.getElementById("resultOutput");
@@ -158,7 +159,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
     const smartPaste = EditorView.domEventHandlers({
         paste(event, view) {
             const text = event.clipboardData && event.clipboardData.getData("text/plain");
-            if (!text || !text.includes("\n")) {
+            if (!panelSettings.smartPaste || !text || !text.includes("\n")) {
                 return false; // single-line paste: default behavior
             }
             const { from, to } = view.state.selection.main;
@@ -194,7 +195,9 @@ import { oneDark } from "@codemirror/theme-one-dark";
             evaluateKeymap,
             keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
             smartPaste,
-            placeholder("Type or paste code \u00b7 Ctrl+Enter to evaluate \u00b7 Alt+\u2191\u2193 history"),
+            placeholder((navigator.platform || "").indexOf("Mac") === 0
+                ? "Type or paste code \u00b7 \u2318Enter to evaluate \u00b7 \u2325\u2191\u2193 history"
+                : "Type or paste code \u00b7 Ctrl+Enter to evaluate \u00b7 Alt+\u2191\u2193 history"),
             contentChangeListener,
             EditorView.lineWrapping,
             EditorState.tabSize.of(4),
@@ -312,7 +315,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
         // to Statements (visibly, so the toggle reflects what ran) the way
         // PyCharm's dialog adapts when it expands to multi-line.
         let mode = getMode();
-        if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+        if (panelSettings.autoModeSwitch && mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
             const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
             if (stmtRadio) {
                 stmtRadio.checked = true;
@@ -324,6 +327,16 @@ import { oneDark } from "@codemirror/theme-one-dark";
         resultOutput.textContent = "Evaluating\u2026";
         resultOutput.className = "result-output loading";
         btnEvaluate.disabled = true;
+        // Safety net: if the debug session dies mid-evaluation no reply ever
+        // arrives; don't leave the button disabled forever.
+        setTimeout(() => {
+            if (pendingRequestId === requestId && btnEvaluate.disabled) {
+                btnEvaluate.disabled = false;
+                pendingRequestId = null;
+                resultOutput.textContent = "No response from the debugger (session ended?). Try again.";
+                resultOutput.className = "result-output error";
+            }
+        }, 30000);
 
         vscode.postMessage({
             command: "evaluate",
@@ -475,6 +488,10 @@ import { oneDark } from "@codemirror/theme-one-dark";
                 break;
 
             case "state":
+                if (msg.settings) {
+                    panelSettings.autoModeSwitch = msg.settings.autoModeSwitch !== false;
+                    panelSettings.smartPaste = msg.settings.smartPaste !== false;
+                }
                 renderWatches(msg.watches);
                 if (msg.lastMode) {
                     const radio = document.querySelector(`input[name="mode"][value="${msg.lastMode}"]`);

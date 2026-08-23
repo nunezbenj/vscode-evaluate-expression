@@ -20944,6 +20944,7 @@
   // media/panel-src.js
   (function() {
     const vscode = acquireVsCodeApi();
+    const panelSettings = { autoModeSwitch: true, smartPaste: true };
     const codeInputEl = document.getElementById("codeInput");
     const resultOutput = document.getElementById("resultOutput");
     const debugStatus = document.getElementById("debugStatus");
@@ -21076,7 +21077,7 @@
     const smartPaste = EditorView.domEventHandlers({
       paste(event, view) {
         const text = event.clipboardData && event.clipboardData.getData("text/plain");
-        if (!text || !text.includes("\n")) {
+        if (!panelSettings.smartPaste || !text || !text.includes("\n")) {
           return false;
         }
         const { from, to } = view.state.selection.main;
@@ -21111,7 +21112,7 @@
         evaluateKeymap,
         keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         smartPaste,
-        placeholder("Type or paste code \xB7 Ctrl+Enter to evaluate \xB7 Alt+\u2191\u2193 history"),
+        placeholder((navigator.platform || "").indexOf("Mac") === 0 ? "Type or paste code \xB7 \u2318Enter to evaluate \xB7 \u2325\u2191\u2193 history" : "Type or paste code \xB7 Ctrl+Enter to evaluate \xB7 Alt+\u2191\u2193 history"),
         contentChangeListener,
         EditorView.lineWrapping,
         EditorState.tabSize.of(4)
@@ -21198,7 +21199,7 @@
       const requestId = generateRequestId();
       pendingRequestId = requestId;
       let mode = getMode();
-      if (mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
+      if (panelSettings.autoModeSwitch && mode === "expression" && code.includes("\n") && code.trim().includes("\n")) {
         const stmtRadio = document.querySelector('input[name="mode"][value="statements"]');
         if (stmtRadio) {
           stmtRadio.checked = true;
@@ -21209,6 +21210,14 @@
       resultOutput.textContent = "Evaluating\u2026";
       resultOutput.className = "result-output loading";
       btnEvaluate.disabled = true;
+      setTimeout(() => {
+        if (pendingRequestId === requestId && btnEvaluate.disabled) {
+          btnEvaluate.disabled = false;
+          pendingRequestId = null;
+          resultOutput.textContent = "No response from the debugger (session ended?). Try again.";
+          resultOutput.className = "result-output error";
+        }
+      }, 3e4);
       vscode.postMessage({
         command: "evaluate",
         code,
@@ -21333,6 +21342,10 @@
           setEditorLanguage(msg.language);
           break;
         case "state":
+          if (msg.settings) {
+            panelSettings.autoModeSwitch = msg.settings.autoModeSwitch !== false;
+            panelSettings.smartPaste = msg.settings.smartPaste !== false;
+          }
           renderWatches(msg.watches);
           if (msg.lastMode) {
             const radio = document.querySelector(`input[name="mode"][value="${msg.lastMode}"]`);

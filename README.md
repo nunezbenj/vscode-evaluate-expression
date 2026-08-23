@@ -124,6 +124,9 @@ npm run compile
 
 ### v1.4.1
 - **Fixed:** A floating (detached) Evaluate window no longer drops behind the main window when you hit Evaluate — focus returns to the panel after the automatic Variables refresh
+- **New:** Opt-out settings for the 1.4.0 automatics: `evaluate.autoModeSwitch` and `evaluate.smartPaste` (both on by default)
+- **Fixed:** The Evaluate button can no longer get stuck disabled if the debug session ends mid-evaluation
+- **Improved:** Editor placeholder shows Mac keybindings (⌘Enter / ⌥↑↓) on macOS
 - **Docs:** Screenshot section matches the new capture, Known Limitations covers the JS/TS frame-locals constraint, removed retired marketplace badges
 
 ### v1.4.0

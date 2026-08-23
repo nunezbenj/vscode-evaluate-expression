@@ -96,6 +96,16 @@
           "default": true,
           "description": "Show 'Evaluate Selection' and 'Add to Watches' CodeLens links above selected code during debugging."
         },
+        "evaluate.autoModeSwitch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically switch to Statements mode when evaluating multi-line code. Takes effect when the panel is (re)opened."
+        },
+        "evaluate.smartPaste": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-dedent multi-line code pasted into the panel. Takes effect when the panel is (re)opened."
+        },
         "evaluate.autoRefreshVariables": {
           "type": "boolean",
           "default": true,

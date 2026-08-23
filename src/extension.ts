@@ -401,12 +401,17 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
         case "getState": {
             const lastMode = context.workspaceState.get<string>("evaluate.lastMode");
             const lastCode = context.workspaceState.get<string>("evaluate.lastCode");
+            const cfg = vscode.workspace.getConfiguration("evaluate");
             sendToWebview({
                 type: "state",
                 watches,
                 history,
                 lastMode: lastMode as import("./types").EvalMode | undefined,
                 lastCode: lastCode,
+                settings: {
+                    autoModeSwitch: cfg.get<boolean>("autoModeSwitch", true),
+                    smartPaste: cfg.get<boolean>("smartPaste", true),
+                },
             });
             sendToWebview({
                 type: "debugStateChanged",

@@ -20,7 +20,9 @@ export type ExtensionToWebview =
     | { type: "historyEntry"; code: string; index: number; total: number }
     | { type: "debugStateChanged"; active: boolean }
     | { type: "languageChanged"; language: string }
-    | { type: "state"; watches: WatchItem[]; history: string[]; lastMode?: EvalMode; lastCode?: string };
+    | { type: "state"; watches: WatchItem[]; history: string[]; lastMode?: EvalMode; lastCode?: string
+    settings?: { autoModeSwitch: boolean; smartPaste: boolean };
+};
 
 export interface WatchItem {
     id: string;
