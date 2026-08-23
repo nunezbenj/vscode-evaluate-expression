@@ -268,9 +268,24 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                     .getConfiguration("evaluate")
                     .get<boolean>("autoRefreshVariables", true);
                 if (!evalResult.error && autoRefresh) {
+                    // The synthetic stopped event makes VS Code focus the
+                    // main workbench window (debug.focusWindowOnBreak), which
+                    // sends a floating Evaluate window to the background. If
+                    // the panel was active when the user evaluated, give it
+                    // focus back once the stop has been processed.
+                    const panelWasActive = panel?.active === true;
                     const refreshed = await refreshVariablesPanel(session, lastStoppedThreadId);
                     if (refreshed) {
                         setTimeout(() => refreshAllWatches(context), 150);
+                        if (panelWasActive) {
+                            setTimeout(() => {
+                                try {
+                                    panel?.reveal(undefined, false);
+                                } catch {
+                                    // panel disposed meanwhile — nothing to do
+                                }
+                            }, 250);
+                        }
                     }
                 }
 

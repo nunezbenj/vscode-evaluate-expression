@@ -2,7 +2,7 @@
   "name": "pycharm-evaluate",
   "displayName": "PyCharm-like Evaluate Expression",
   "description": "Multi-line expression evaluation panel for debugging, inspired by PyCharm's Evaluate Expression dialog",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "icon": "images/icon.png",
   "publisher": "nunezbenj",
   "repository": {

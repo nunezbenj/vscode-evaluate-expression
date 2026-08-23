@@ -122,6 +122,10 @@ npm run compile
 
 ## Changelog
 
+### v1.4.1
+- **Fixed:** A floating (detached) Evaluate window no longer drops behind the main window when you hit Evaluate — focus returns to the panel after the automatic Variables refresh
+- **Docs:** Screenshot section matches the new capture, Known Limitations covers the JS/TS frame-locals constraint, removed retired marketplace badges
+
 ### v1.4.0
 - **New:** New variables created in Statements mode now **persist in the paused frame** (Python). Code executes directly via debugpy's repl/exec path instead of a function wrapper, so `x = 5` appears in Variables just like PyCharm
 - **New:** The **Variables panel auto-refreshes** after every evaluation, via a no-op DAP `goto` (Set Next Statement to the current line) that triggers a full VS Code refresh without advancing execution. Configurable via `evaluate.autoRefreshVariables`; watches refresh too
