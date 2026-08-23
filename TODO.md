@@ -5,6 +5,12 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
 
 ## Next (1.5.0 candidates)
 
+- [ ] **Step controls in the panel** — step over/into/out + continue buttons in
+      the Evaluate panel itself, so a detached floating window works as a
+      debugging HUD without ever touching the main window (trivial to trigger:
+      `workbench.action.debug.stepOver` etc.; UX is the work). Pairs well with
+      documenting `debug.focusWindowOnBreak: false` for floating-window users.
+
 - [ ] **Result tree explorer** — render results with a `variablesReference` as an
       expandable tree (DAP `variables` requests on expand), like PyCharm's result
       pane / the Variables view, instead of a flat string. Biggest remaining gap
