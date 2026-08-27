@@ -35,6 +35,11 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
       src/dap.ts for why no API exists today)
 - [ ] Localization of panel strings
 
+## Done in 1.4.2
+
+- [x] Show program output (stdout/stderr) in the Result panel — captured from
+      DAP output events during the evaluation (first user request, Gopal)
+
 ## Done in 1.4.0
 
 - [x] Persist new locals in the paused frame (drop function wrapper; direct

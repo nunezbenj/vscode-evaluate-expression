@@ -14,8 +14,8 @@ export type WebviewToExtension =
 
 // Extension -> Webview messages
 export type ExtensionToWebview =
-    | { type: "evaluateResult"; requestId: string; result: string }
-    | { type: "evaluateError"; requestId: string; error: string }
+    | { type: "evaluateResult"; requestId: string; result: string; output?: string }
+    | { type: "evaluateError"; requestId: string; error: string; output?: string }
     | { type: "watchesUpdated"; watches: WatchItem[] }
     | { type: "historyEntry"; code: string; index: number; total: number }
     | { type: "debugStateChanged"; active: boolean }

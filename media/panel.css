@@ -294,3 +294,22 @@ body.splitter-dragging {
     cursor: ns-resize;
     user-select: none;
 }
+
+/* Captured program output shown above the result value */
+.eval-output {
+    color: var(--vscode-editor-foreground);
+    white-space: pre-wrap;
+}
+.eval-sep {
+    color: var(--vscode-descriptionForeground, #7a7a7a);
+    opacity: 0.7;
+    user-select: none;
+}
+.eval-value-success {
+    color: var(--vscode-terminal-ansiGreen, #4ec94e);
+    white-space: pre-wrap;
+}
+.eval-value-error {
+    color: var(--vscode-errorForeground, #f48771);
+    white-space: pre-wrap;
+}

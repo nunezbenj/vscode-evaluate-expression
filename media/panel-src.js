@@ -451,8 +451,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
                 if (msg.requestId === pendingRequestId) {
                     lastResultText = msg.error;
                     lastResultClass = "result-output error";
-                    resultOutput.textContent = lastResultText;
-                    resultOutput.className = lastResultClass;
+                    renderEvalOutcome(msg.output, msg.error, "eval-value-error");
                     btnEvaluate.disabled = false;
                     pendingRequestId = null;
                 }
@@ -512,6 +511,22 @@ import { oneDark } from "@codemirror/theme-one-dark";
             resultOutput.textContent = lastResultText;
             resultOutput.className = lastResultClass;
         }
+    }
+
+    // Shows captured program output (print etc.) above the result value so
+    // the Debug Console doesn't need to stay open. Output keeps the normal
+    // foreground; the value keeps the success/error color.
+    function renderEvalOutcome(output, value, valueClass) {
+        resultOutput.className = "result-output";
+        if (output && output.length > 0) {
+            resultOutput.innerHTML =
+                '<span class="eval-output">' + escapeHtml(output.replace(/\n$/, "")) + "</span>" +
+                '\n<span class="eval-sep">\u2500\u2500\u2500</span>\n' +
+                '<span class="' + valueClass + '">' + escapeHtml(value) + "</span>";
+        } else {
+            resultOutput.innerHTML = '<span class="' + valueClass + '">' + escapeHtml(value) + "</span>";
+        }
+        lastResultText = (output ? output + "\n" : "") + value;
     }
 
     function escapeHtml(str) {

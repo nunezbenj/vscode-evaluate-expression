@@ -20,6 +20,11 @@ let panel: vscode.WebviewPanel | undefined;
 // panel's focus when that event lands — the fixed-delay approach raced the
 // event and lost when evaluations were fast.
 let revealPanelOnStopUntil = 0;
+// While an evaluation is running, program output (print etc.) travels as
+// DAP "output" events to the Debug Console, not in the evaluate response.
+// Capture those events here so the panel can show output next to the
+// result (user request: avoid keeping the Debug Console open alongside).
+let outputCapture: string[] | null = null;
 let lastStoppedThreadId: number | undefined;
 let evaluationInFlight = false;
 let evaluationCooldownTimer: ReturnType<typeof setTimeout> | undefined;
@@ -137,7 +142,15 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.debug.registerDebugAdapterTrackerFactory("*", {
             createDebugAdapterTracker(session) {
                 return {
-                    onDidSendMessage(message: { type: string; event?: string; body?: { threadId?: number } }) {
+                    onDidSendMessage(message: { type: string; event?: string; body?: { threadId?: number; category?: string; output?: string } }) {
+                        if (
+                            message.type === "event" &&
+                            message.event === "output" &&
+                            outputCapture !== null &&
+                            (message.body?.category === "stdout" || message.body?.category === "stderr" || message.body?.category === undefined)
+                        ) {
+                            outputCapture.push(String(message.body?.output ?? ""));
+                        }
                         if (message.type === "event" && message.event === "stopped") {
                             log("DAP stopped event", { threadId: message.body?.threadId, evaluationInFlight });
                             lastStoppedThreadId = message.body?.threadId;
@@ -266,6 +279,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 const frameId = await getBestFrameId(session, lastStoppedThreadId);
                 log("evaluate frameId resolved", { frameId, lastStoppedThreadId });
                 const lang = getLanguageForSessionType(session.type);
+                outputCapture = [];
                 let evalResult;
                 if (msg.mode === "statements" && lang === "python") {
                     const plan = planPythonSnippet(msg.code);
@@ -278,7 +292,12 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 } else {
                     evalResult = await evaluateInFrame(session, msg.code, frameId);
                 }
-                log("evaluate DAP result", { evalResult });
+                // Give trailing output events a brief moment to arrive,
+                // then stop capturing before watch/refresh activity starts.
+                await new Promise((resolve) => setTimeout(resolve, 120));
+                const capturedOutput = (outputCapture ?? []).join("");
+                outputCapture = null;
+                log("evaluate DAP result", { evalResult, capturedOutputLen: capturedOutput.length });
 
                 // Program state may have changed — force VS Code to refetch
                 // the Variables panel (no extension API exists; see
@@ -329,11 +348,13 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                         type: "evaluateError",
                         requestId: msg.requestId,
                         error: errorText,
+                        output: capturedOutput,
                     });
                 } else {
                     log("evaluate sending RESULT to webview", { requestId: msg.requestId, result: evalResult.result });
                     sendToWebview({
                         type: "evaluateResult",
+                        output: capturedOutput,
                         requestId: msg.requestId,
                         result: evalResult.result ?? "",
                     });
