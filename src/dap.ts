@@ -283,6 +283,8 @@ export function looksLikeBareExpression(line: string): boolean {
 export interface EvalResult {
     result?: string;
     error?: string;
+    /** stdout/stderr captured during the evaluation (Python direct path) */
+    output?: string;
 }
 
 function formatExecResult(result: string | undefined): string {
@@ -300,6 +302,88 @@ function formatExecResult(result: string | undefined): string {
  * expression — also in repl context, so its side effects persist too — and
  * report its value.
  */
+/**
+ * Wraps statement-mode code so its stdout/stderr is captured regardless of
+ * the session's console mode (integratedTerminal sends program output to
+ * the terminal PTY and never emits DAP output events, so tracker-side
+ * capture alone misses it). The exec runs against the frame's merged
+ * namespace, so new locals still persist via pydevd's save_locals; the
+ * captured text is stashed on builtins (not the frame, so the Variables
+ * panel never shows it) and fetched+deleted right after. Verified against
+ * live debugpy: persistence, capture, and cleanup all hold.
+ */
+export function buildPythonOutputHarness(body: string): string {
+    const lit = JSON.stringify(body); // valid Python string literal
+    return (
+        "import io as __eio, contextlib as __ectx, builtins as __ebi, json as __ejson\n" +
+        "__ebuf = __eio.StringIO(); __eres = None; __ecode = None\n" +
+        "try:\n" +
+        "    try:\n" +
+        "        __ecode = compile(" + lit + ", '<evaluate>', 'eval')\n" +
+        "    except SyntaxError:\n" +
+        "        pass\n" +
+        "    with __ectx.redirect_stdout(__ebuf), __ectx.redirect_stderr(__ebuf):\n" +
+        "        if __ecode is not None:\n" +
+        "            __eres = repr(eval(__ecode))\n" +
+        "        else:\n" +
+        "            exec(compile(" + lit + ", '<evaluate>', 'exec'))\n" +
+        "finally:\n" +
+        "    __eout = __ebuf.getvalue()\n" +
+        "    if len(__eout) > 100000:\n" +
+        "        __eout = __eout[:100000] + '\\n...[output truncated]'\n" +
+        "    __ebi.__eval_payload__ = __ejson.dumps([__eout, __eres])\n" +
+        "    del __ebuf, __eio, __ectx, __ebi, __ejson, __eres, __ecode, __eout\n"
+    );
+}
+
+/** Strips the harness's own frames from tracebacks so users see their
+ * code (shown as File "<evaluate>") without the plumbing. */
+export function stripHarnessFrames(errorText: string): string {
+    return errorText.replace(
+        /^\s*File "<string>", line \d+, in <module>\r?\n\s*(exec\(compile\(|__eres = repr\(eval\().*\r?\n?/gm,
+        ""
+    );
+}
+
+async function fetchAndClearHarnessPayload(
+    session: vscode.DebugSession,
+    frameId: number
+): Promise<{ output: string; valueRepr: string | null }> {
+    const empty = { output: "", valueRepr: null };
+    try {
+        const resp = await session.customRequest("evaluate", {
+            expression:
+                "__import__('base64').b64encode(__import__('builtins').__eval_payload__.encode()).decode()",
+            frameId,
+            context: "repl",
+        });
+        await session
+            .customRequest("evaluate", {
+                expression: "delattr(__import__('builtins'), '__eval_payload__')",
+                frameId,
+                context: "repl",
+            })
+            .then(undefined, () => undefined);
+        let b64 = String(resp?.result ?? "").trim();
+        if ((b64.startsWith("'") && b64.endsWith("'")) || (b64.startsWith('"') && b64.endsWith('"'))) {
+            b64 = b64.slice(1, -1);
+        }
+        if (!/^[A-Za-z0-9+/=]*$/.test(b64) || b64.length === 0) {
+            return empty;
+        }
+        const parsed = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
+        if (!Array.isArray(parsed) || parsed.length !== 2) {
+            return empty;
+        }
+        return {
+            output: typeof parsed[0] === "string" ? parsed[0] : "",
+            valueRepr: typeof parsed[1] === "string" ? parsed[1] : null,
+        };
+    } catch {
+        return empty;
+    }
+}
+
 export async function evaluatePythonPlan(
     session: vscode.DebugSession,
     plan: PythonEvalPlan,
@@ -314,18 +398,28 @@ export async function evaluatePythonPlan(
         return evaluateInFrame(session, plan.wrapped!, frameId, true);
     }
 
+    let capturedOutputSoFar = "";
     try {
-        let bodyResult: string | undefined;
+        let bodyValueRepr: string | null = null;
+        let capturedOutput = "";
         const body = (plan.body ?? "").trim().length > 0 ? plan.body! : undefined;
         if (body) {
-            log("evaluatePythonPlan: exec body", { bodyLen: body.length, hasTail: !!plan.tail });
+            log("evaluatePythonPlan: exec body via output harness", { bodyLen: body.length, hasTail: !!plan.tail });
             logVerbose("evaluatePythonPlan: body", { body });
-            const resp = await session.customRequest("evaluate", {
-                expression: body,
-                frameId,
-                context: "repl",
-            });
-            bodyResult = resp?.result;
+            try {
+                await session.customRequest("evaluate", {
+                    expression: buildPythonOutputHarness(body),
+                    frameId,
+                    context: "repl",
+                });
+            } finally {
+                // The harness stashes output (and, for bodies that compile
+                // as a single expression, the value) even when it raised.
+                const payload = await fetchAndClearHarnessPayload(session, frameId);
+                capturedOutput = payload.output;
+                capturedOutputSoFar = payload.output;
+                bodyValueRepr = payload.valueRepr;
+            }
         }
 
         if (plan.tail !== undefined && plan.tail.trim().length > 0) {
@@ -335,13 +429,14 @@ export async function evaluatePythonPlan(
                 frameId,
                 context: "repl",
             });
-            return { result: formatExecResult(tailResp?.result) };
+            return { result: formatExecResult(tailResp?.result), output: capturedOutput };
         }
 
-        return { result: formatExecResult(bodyResult) };
+        return { result: formatExecResult(bodyValueRepr ?? undefined), output: capturedOutput };
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return { error: msg };
+        // A tail that raises must not discard output the body captured.
+        return { error: stripHarnessFrames(msg), output: capturedOutputSoFar };
     }
 }
 

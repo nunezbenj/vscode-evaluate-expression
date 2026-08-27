@@ -294,7 +294,7 @@ describe("wrapJavaScriptSnippet", () => {
 });
 
 // ---- v1.4.0: planner tests ----
-import { planPythonSnippet, prepareJavaScriptSnippet, cleanPythonTraceback } from "../dap";
+import { planPythonSnippet, prepareJavaScriptSnippet, cleanPythonTraceback, buildPythonOutputHarness, stripHarnessFrames } from "../dap";
 
 describe("planPythonSnippet", () => {
     it("single expression becomes empty body + tail", () => {
@@ -437,5 +437,33 @@ describe("cleanPythonTraceback", () => {
         assert.ok(out.includes("ZeroDivisionError"));
         assert.ok(!out.includes("pydevd.py"));
         assert.ok(!out.startsWith("Traceback"));
+    });
+});
+
+describe("buildPythonOutputHarness / stripHarnessFrames", () => {
+    it("embeds user code as a safe literal, tries eval first, stashes payload", () => {
+        const h = buildPythonOutputHarness('print("a\\"b")\nx = 1');
+        assert.ok(h.includes("redirect_stdout"));
+        assert.ok(h.includes("'<evaluate>', 'eval'"));
+        assert.ok(h.includes("'<evaluate>', 'exec'"));
+        assert.ok(h.includes("__ebi.__eval_payload__"));
+        assert.ok(h.includes("[output truncated]"));
+    });
+
+    it("strips only the harness exec frame from tracebacks", () => {
+        const tb = [
+            "Traceback (most recent call last):",
+            '  File "<string>", line 12, in <module>',
+            "    exec(compile(\"print(1/0)\", '<evaluate>', 'exec'))",
+            '  File "<string>", line 10, in <module>',
+            "    __eres = repr(eval(__ecode))",
+            '  File "<evaluate>", line 1, in <module>',
+            "ZeroDivisionError: division by zero",
+        ].join("\n");
+        const out = stripHarnessFrames(tb);
+        assert.ok(!out.includes("exec(compile"));
+        assert.ok(!out.includes("repr(eval"));
+        assert.ok(out.includes('File "<evaluate>", line 1'));
+        assert.ok(out.includes("ZeroDivisionError"));
     });
 });

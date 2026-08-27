@@ -123,7 +123,7 @@ npm run compile
 ## Changelog
 
 ### v1.4.2
-- **New:** **Program output appears in the Result panel.** `print()` and other stdout/stderr produced by your evaluated code is captured and shown above the result value — no need to keep the Debug Console open alongside the panel. Output still goes to the Debug Console as well. (Thanks to the first user feedback!)
+- **New:** **Program output appears in the Result panel.** `print()` and other stdout/stderr produced by your evaluated code is captured and shown above the result value — no need to keep the Debug Console open alongside the panel. Works in every console mode (`internalConsole`, `integratedTerminal`, `externalTerminal`): Python statements capture output in-process, and Debug Console output events are collected as well. (Thanks to the first user feedback!)
 
 ### v1.4.1
 - **Fixed:** A floating (detached) Evaluate window no longer drops behind the main window when you hit Evaluate — the panel re-asserts focus when the refresh's stop event is processed (with a late second pass), instead of racing it on a timer. For completely flicker-free behavior you can also set VS Code's `debug.focusWindowOnBreak` to `false`

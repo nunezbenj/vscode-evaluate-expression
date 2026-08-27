@@ -21298,10 +21298,8 @@
       switch (msg.type) {
         case "evaluateResult":
           if (msg.requestId === pendingRequestId) {
-            lastResultText = msg.result;
             lastResultClass = "result-output success";
-            resultOutput.textContent = lastResultText;
-            resultOutput.className = lastResultClass;
+            renderEvalOutcome(msg.output, msg.result, "eval-value-success");
             btnEvaluate.disabled = false;
             pendingRequestId = null;
           }

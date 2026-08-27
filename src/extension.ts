@@ -295,7 +295,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 // Give trailing output events a brief moment to arrive,
                 // then stop capturing before watch/refresh activity starts.
                 await new Promise((resolve) => setTimeout(resolve, 120));
-                const capturedOutput = (outputCapture ?? []).join("");
+                const capturedOutput = (evalResult?.output ?? "") + (outputCapture ?? []).join("");
                 outputCapture = null;
                 log("evaluate DAP result", { evalResult, capturedOutputLen: capturedOutput.length });
 
