@@ -54,14 +54,21 @@ Evaluating a multi-line snippet while paused at a breakpoint: the new variable `
 4. Click **Evaluate** (or press `Ctrl+Enter`)
 5. See the result in the output area
 
-### Tip: Floating Window
+### Tip: Floating Window (the debugging HUD)
 
 For the best experience, detach the Evaluate panel into its own window:
 
 1. Right-click the **"Evaluate Expression"** tab
 2. Select **"Move into New Window"**
 
-This mimics PyCharm's floating Evaluate dialog and lets you keep your code fully visible while evaluating expressions. You can position it on a second monitor or anywhere on your screen.
+This mimics PyCharm's floating Evaluate dialog and lets you keep your code fully visible while evaluating expressions. With the step controls in the panel (1.6.0) it becomes a full debugging HUD: evaluate, expand results, step, repeat — without touching the main window.
+
+Two settings make it seamless — **recommended**:
+
+- **Pin the floating window on top.** Click the **pin icon** in the floating window's title bar (or run *"Toggle Always On Top"* from the Command Palette while it's focused). The HUD then stays above the main window no matter what, with no focus flicker when stepping.
+- **Stop the main window from grabbing focus on breaks.** Set `debug.focusWindowOnBreak` to `false` in VS Code settings. Stepping and breakpoints then update the editor quietly behind your HUD instead of surfacing the main window.
+
+Position the HUD on a second monitor or over an unused corner of your code, and you have the workflow PyCharm's dialog never quite offered.
 
 ### Keybindings
 
@@ -142,6 +149,7 @@ npm run compile
 ## Changelog
 
 ### v1.6.0
+- **Docs:** Floating-window HUD setup recommendations — pin the window always-on-top and set `debug.focusWindowOnBreak: false`
 - **New:** The panel's editor group is **locked** on open (`evaluate.lockPanelGroup`), so files the debugger reveals on Step Into open in your code group instead of piling up next to the panel — one group for the HUD, one for code
 - **New:** **Step controls in the panel** — Continue/Pause and Step Over/Into/Out buttons in the panel header, state-aware (steps disabled while running; Continue swaps to Pause). Steps triggered from a focused panel return focus to it after landing, so a floating HUD keeps your hands even when Step Into opens a new file. Completes the floating-window debugging HUD
 
