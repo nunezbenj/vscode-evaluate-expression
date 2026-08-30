@@ -90,6 +90,16 @@ The only exception: snippets that use `return` for flow control mid-block (e.g.,
 
 For **JavaScript/TypeScript**, code runs like in the DevTools console: the last statement's completion value is shown, and declarations persist as far as the V8 debugger allows.
 
+## Troubleshooting & Reporting Bugs
+
+The extension always logs its activity — you do **not** need to reproduce a problem to report it.
+
+- **Right after something goes wrong:** run **Evaluate: Copy Diagnostic Report** from the Command Palette. It copies your environment, settings, log location, and the recent log in one step. ⚠️ Review it first: it includes recently evaluated code and results.
+- **After a crash or window reload:** logs persist on disk across sessions. Run **Evaluate: Open Previous Session Logs** and pick the file from the crashed session to attach.
+- **For deeper traces on a reproducible issue:** enable `evaluate.verboseLogging` (logs full code and DAP traffic), reproduce once, then copy the report.
+
+Open an issue at [github.com/nunezbenj/vscode-evaluate-expression/issues](https://github.com/nunezbenj/vscode-evaluate-expression/issues) and paste what you collected.
+
 ## Known Limitations
 
 - **Python:** new locals don't persist when the snippet uses `return` for mid-block flow control — that pattern falls back to a function-wrapped execution (see Scoping Note above). A trailing `return expr` is fine.
@@ -126,6 +136,7 @@ npm run compile
 ### v1.5.0
 - **New:** **Structured result tree.** Results with structure (dicts, lists, objects) render as an expandable tree in the Result panel — click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. The result object is anchored so the tree stays expandable even after the automatic Variables refresh
 - **Fixed:** The `RuntimeWarning: assigning None to N unbound locals` emitted on every auto-refresh (Python 3.12+) — surfaced as red ERROR lines by warning-capturing loggers — is now suppressed with a filter scoped to that exact message. The underlying behavior is documented under Known Limitations
+- **New:** **Crash-proof diagnostics.** Logs persist to disk across window reloads and crashes (rotating, last 5 sessions). **Evaluate: Copy Diagnostic Report** copies environment, settings, and the recent log in one step; **Evaluate: Open Previous Session Logs** recovers a crashed session's log. Internal errors are captured with stack traces and surface a pointer to the report. Plus a GitHub issue template and a Troubleshooting section
 - **Improved:** Expression mode (Python) now runs through the same evaluation engine as Statements mode — it gains output capture, the result tree, and tolerance for statements
 
 ### v1.4.2

@@ -13,7 +13,7 @@ import {
     fetchAnchoredResultRef,
     fetchResultChildren,
 } from "./dap";
-import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
+import { initLog, log, logVerbose, closeLog, showLog, getLogContents, getLogDir, showErrorWithLog } from "./log";
 import { EvaluateCodeLensProvider } from "./codelens";
 
 let panel: vscode.WebviewPanel | undefined;
@@ -39,7 +39,7 @@ let watches: WatchItem[] = [];
 let watchIdCounter = 0;
 
 export function activate(context: vscode.ExtensionContext) {
-    initLog();
+    initLog(context);
     log("activate() called");
 
     history = context.workspaceState.get<string[]>("evaluate.history", []);
@@ -95,6 +95,53 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand("evaluate.openPreviousLogs", async () => {
+            const dir = getLogDir();
+            if (!dir) {
+                vscode.window.showInformationMessage("Log directory unavailable.");
+                return;
+            }
+            const fs = require("fs") as typeof import("fs");
+            const path = require("path") as typeof import("path");
+            const files = fs
+                .readdirSync(dir)
+                .filter((f: string) => f.endsWith(".log"))
+                .sort()
+                .reverse();
+            if (files.length === 0) {
+                vscode.window.showInformationMessage("No log files yet.");
+                return;
+            }
+            const pick = await vscode.window.showQuickPick(files, {
+                placeHolder: "Session log files (newest first — pick an older one for a crashed session)",
+            });
+            if (pick) {
+                const doc = await vscode.workspace.openTextDocument(path.join(dir, pick));
+                await vscode.window.showTextDocument(doc, { preview: true });
+            }
+        }),
+        vscode.commands.registerCommand("evaluate.copyDiagnostics", async () => {
+            const extVersion =
+                vscode.extensions.getExtension("nunezbenj.pycharm-evaluate")?.packageJSON?.version ?? "unknown";
+            const cfg = vscode.workspace.getConfiguration("evaluate");
+            const session = vscode.debug.activeDebugSession;
+            const logTail = getLogContents().split("\n").slice(-400).join("\n");
+            const report = [
+                "=== Evaluate Expression diagnostic report ===",
+                `Extension: ${extVersion}  VS Code: ${vscode.version}  OS: ${process.platform}/${process.arch}`,
+                `Remote: ${vscode.env.remoteName ?? "none"}  UI kind: ${vscode.env.uiKind === vscode.UIKind.Web ? "web" : "desktop"}`,
+                `Active debug session: ${session ? session.type + " (" + session.name + ")" : "none"}`,
+                `Settings: autoRefreshVariables=${cfg.get("autoRefreshVariables")} autoModeSwitch=${cfg.get("autoModeSwitch")} smartPaste=${cfg.get("smartPaste")} verboseLogging=${cfg.get("verboseLogging")} showCodeLens=${cfg.get("showCodeLens")}`,
+                `Log directory (persists across reloads): ${getLogDir() ?? "unavailable"}`,
+                "",
+                "--- last 400 log lines ---",
+                logTail,
+            ].join("\n");
+            await vscode.env.clipboard.writeText(report);
+            vscode.window.showInformationMessage(
+                "Diagnostic report copied. It includes recently evaluated code and results — review before sharing, then paste into a GitHub issue."
+            );
+        }),
         vscode.commands.registerCommand("evaluate.copyLog", async () => {
             const contents = getLogContents();
             if (!contents) {
@@ -225,7 +272,17 @@ function openPanel(context: vscode.ExtensionContext) {
     panel.webview.html = getWebviewHtml(panel.webview, context.extensionPath);
 
     panel.webview.onDidReceiveMessage(
-        (msg: WebviewToExtension) => handleWebviewMessage(msg, context),
+        (msg: WebviewToExtension) =>
+            handleWebviewMessage(msg, context).catch((err: unknown) => {
+                // Our own failures must be loud and captured, not silent:
+                // log with stack (persisted to disk) and point the user at
+                // the diagnostic report so "it crashed" is always traceable.
+                const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+                log("UNHANDLED ERROR in webview message handler", { command: (msg as { command?: string }).command, detail });
+                showErrorWithLog(
+                    "Evaluate Expression hit an internal error (diagnostics captured — run 'Evaluate: Copy Diagnostic Report')."
+                );
+            }),
         undefined,
         context.subscriptions
     );

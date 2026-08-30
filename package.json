@@ -58,6 +58,14 @@
         "title": "Evaluate: Show Debug Log"
       },
       {
+        "command": "evaluate.openPreviousLogs",
+        "title": "Evaluate: Open Previous Session Logs"
+      },
+      {
+        "command": "evaluate.copyDiagnostics",
+        "title": "Evaluate: Copy Diagnostic Report"
+      },
+      {
         "command": "evaluate.copyLog",
         "title": "Evaluate: Copy Debug Log to Clipboard"
       }

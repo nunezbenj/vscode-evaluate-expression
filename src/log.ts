@@ -1,12 +1,44 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 
 let outputChannel: vscode.OutputChannel | undefined;
 let verboseEnabled = false;
 let logBuffer: string[] = [];
 const MAX_BUFFER_LINES = 5000;
+let logFileStream: fs.WriteStream | undefined;
+let logDirPath: string | undefined;
+const KEEP_LOG_FILES = 5;
 
-export function initLog() {
+/** Persist logs to disk so a crash or window reload doesn't destroy the
+ * evidence — "it crashed yesterday, can't reproduce" stays diagnosable. */
+function initLogFile(context: vscode.ExtensionContext) {
+    try {
+        logDirPath = context.logUri.fsPath;
+        fs.mkdirSync(logDirPath, { recursive: true });
+        const existing = fs
+            .readdirSync(logDirPath)
+            .filter((f) => f.startsWith("evaluate-") && f.endsWith(".log"))
+            .sort();
+        for (const f of existing.slice(0, Math.max(0, existing.length - (KEEP_LOG_FILES - 1)))) {
+            try { fs.unlinkSync(path.join(logDirPath, f)); } catch { /* ignore */ }
+        }
+        const name = "evaluate-" + new Date().toISOString().replace(/[:.]/g, "-") + ".log";
+        logFileStream = fs.createWriteStream(path.join(logDirPath, name), { flags: "a" });
+    } catch {
+        logFileStream = undefined; // disk logging is best-effort
+    }
+}
+
+export function getLogDir(): string | undefined {
+    return logDirPath;
+}
+
+export function initLog(context?: vscode.ExtensionContext) {
     outputChannel = vscode.window.createOutputChannel("Evaluate Expression");
+    if (context) {
+        initLogFile(context);
+    }
 
     verboseEnabled = vscode.workspace
         .getConfiguration("evaluate")
@@ -46,6 +78,7 @@ export function log(msg: string, data?: unknown) {
         }
     }
     outputChannel?.appendLine(line);
+    logFileStream?.write(line + "\n");
     logBuffer.push(line);
     if (logBuffer.length > MAX_BUFFER_LINES) {
         logBuffer.shift();
@@ -76,6 +109,8 @@ export function showErrorWithLog(message: string) {
 }
 
 export function closeLog() {
+    logFileStream?.end();
+    logFileStream = undefined;
     outputChannel?.dispose();
     outputChannel = undefined;
     logBuffer = [];
