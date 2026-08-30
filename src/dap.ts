@@ -528,6 +528,10 @@ export async function fetchResultChildren(
 // Sessions where the goto-based refresh has been observed to fail; skip
 // them instead of retrying on every evaluation.
 const gotoRefreshUnsupported = new Set<string>();
+// Sessions where the RuntimeWarning filter for the goto's side effect has
+// been installed (once per session is enough — warning filters are
+// process-global in the debuggee).
+const gotoWarningFilterInstalled = new Set<string>();
 
 const INTERNAL_FRAME_RE = /[\\/](_pydevd_bundle|pydevd|_vendored|debugpy)[\\/]|[\\/]pydevd\.py/;
 
@@ -615,6 +619,25 @@ export async function refreshVariablesPanel(
         const frame = stackResp?.stackFrames?.[0];
         if (!frame || !frame.source || typeof frame.line !== "number") {
             return false;
+        }
+
+        if (!gotoWarningFilterInstalled.has(session.id)) {
+            // CPython 3.12+ emits "RuntimeWarning: assigning None to N
+            // unbound locals" when pydevd applies the goto; logging
+            // frameworks that capture warnings surface it as an ERROR on
+            // every refresh. Install a filter scoped to that exact message
+            // so only this debugger-plumbing warning is silenced.
+            try {
+                await session.customRequest("evaluate", {
+                    expression:
+                        "__import__('warnings').filterwarnings('ignore', message='assigning None to .* unbound locals')",
+                    frameId: frame.id,
+                    context: "repl",
+                });
+                gotoWarningFilterInstalled.add(session.id);
+            } catch {
+                // non-fatal; the refresh still works, just noisier
+            }
         }
 
         const targetsResp = await session.customRequest("gotoTargets", {

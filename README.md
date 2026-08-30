@@ -94,6 +94,7 @@ For **JavaScript/TypeScript**, code runs like in the DevTools console: the last 
 
 - **Python:** new locals don't persist when the snippet uses `return` for mid-block flow control — that pattern falls back to a function-wrapped execution (see Scoping Note above). A trailing `return expr` is fine.
 - **JavaScript/TypeScript:** the V8 debugger does not allow adding *new* local variables to a paused frame; mutations to existing objects work, and declarations persist only as far as the runtime allows.
+- **Auto-refresh side effect (Python 3.12+):** the refresh uses Set Next Statement to the current line, which makes CPython pre-bind not-yet-assigned locals in the paused function to `None` — they appear in the Variables panel as `None` instead of being absent, and are assigned normally as execution proceeds. The associated `RuntimeWarning` is suppressed automatically. If your code distinguishes unbound from `None` (rare), disable `evaluate.autoRefreshVariables`.
 - **Auto-refresh of the Variables panel** relies on the debug adapter supporting the DAP `goto` request (debugpy does). On adapters without it, refresh is skipped automatically — step once (F10) to see updated values, or disable via `evaluate.autoRefreshVariables`.
 
 ## Bug Reporting
@@ -124,6 +125,7 @@ npm run compile
 
 ### v1.5.0
 - **New:** **Structured result tree.** Results with structure (dicts, lists, objects) render as an expandable tree in the Result panel — click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. The result object is anchored so the tree stays expandable even after the automatic Variables refresh
+- **Fixed:** The `RuntimeWarning: assigning None to N unbound locals` emitted on every auto-refresh (Python 3.12+) — surfaced as red ERROR lines by warning-capturing loggers — is now suppressed with a filter scoped to that exact message. The underlying behavior is documented under Known Limitations
 - **Improved:** Expression mode (Python) now runs through the same evaluation engine as Statements mode — it gains output capture, the result tree, and tolerance for statements
 
 ### v1.4.2
