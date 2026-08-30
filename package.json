@@ -114,6 +114,11 @@
           "default": true,
           "description": "Auto-dedent multi-line code pasted into the panel. Takes effect when the panel is (re)opened."
         },
+        "evaluate.lockPanelGroup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Lock the editor group the Evaluate panel opens in, so files the debugger reveals (e.g. on Step Into) open in your code group instead of next to the panel. You can unlock the group from its '...' menu at any time."
+        },
         "evaluate.autoRefreshVariables": {
           "type": "boolean",
           "default": true,

@@ -6,7 +6,7 @@ A VS Code / Cursor extension that provides a **multi-line Evaluate Expression pa
 
 ## What's New in 1.6.0 🎉
 
-- **Step controls in the panel** — Continue/Pause, Step Over, Step Into, and Step Out buttons live next to the mode toggle. Detach the panel into a floating window and it becomes a full **debugging HUD**: evaluate, inspect the result tree, step, watch everything refresh — without ever touching the main window. Buttons enable and disable with the debugger's run state.
+- **Step controls in the panel** — Continue/Pause, Step Over, Step Into, and Step Out buttons live next to the mode toggle. Detach the panel into a floating window and it becomes a full **debugging HUD**: evaluate, inspect the result tree, step, watch everything refresh — without ever touching the main window. Buttons enable and disable with the debugger's run state, and the panel's editor group is locked so stepped-into files open beside your code, not beside the panel.
 
 ## Previously in 1.5.x
 
@@ -142,7 +142,8 @@ npm run compile
 ## Changelog
 
 ### v1.6.0
-- **New:** **Step controls in the panel** — Continue/Pause and Step Over/Into/Out buttons in the panel header, state-aware (steps disabled while running; Continue swaps to Pause). Completes the floating-window debugging HUD
+- **New:** The panel's editor group is **locked** on open (`evaluate.lockPanelGroup`), so files the debugger reveals on Step Into open in your code group instead of piling up next to the panel — one group for the HUD, one for code
+- **New:** **Step controls in the panel** — Continue/Pause and Step Over/Into/Out buttons in the panel header, state-aware (steps disabled while running; Continue swaps to Pause). Steps triggered from a focused panel return focus to it after landing, so a floating HUD keeps your hands even when Step Into opens a new file. Completes the floating-window debugging HUD
 
 ### v1.5.1
 - Docs-only: marketplace listing updated to the 1.5.0 What's New; support dialogue formatted as a chat

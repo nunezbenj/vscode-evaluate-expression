@@ -275,6 +275,15 @@ function openPanel(context: vscode.ExtensionContext) {
 
     panel.webview.html = getWebviewHtml(panel.webview, context.extensionPath);
 
+    // Keep the panel's editor group to itself: a locked group does not
+    // receive editors VS Code opens on its own (e.g. the debugger revealing
+    // a file on Step Into), so those land in the code group instead of
+    // stacking up next to the panel. The panel is the active editor right
+    // after creation, so the command targets its group.
+    if (vscode.workspace.getConfiguration("evaluate").get<boolean>("lockPanelGroup", true)) {
+        vscode.commands.executeCommand("workbench.action.lockEditorGroup").then(undefined, () => undefined);
+    }
+
     panel.webview.onDidReceiveMessage(
         (msg: WebviewToExtension) =>
             handleWebviewMessage(msg, context).catch((err: unknown) => {
@@ -328,7 +337,17 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
             };
             const cmd = actionMap[msg.action];
             if (cmd && vscode.debug.activeDebugSession) {
-                log("debugAction", { action: msg.action });
+                log("debugAction", { action: msg.action, panelActive: panel?.active });
+                // A step that lands in a file that isn't open makes VS Code
+                // open and focus it — right for the main window, but it
+                // pulls the user out of a floating HUD. If the action came
+                // from the focused panel, bring focus back once the stop
+                // settles (same mechanism as the evaluate refresh). Steps
+                // land fast; Continue may run a long time, so its window is
+                // short to avoid surprising focus grabs later.
+                if (panel?.active && msg.action !== "pause") {
+                    revealPanelOnStopUntil = Date.now() + (msg.action === "continue" ? 3000 : 5000);
+                }
                 await vscode.commands.executeCommand(cmd);
             }
             break;
@@ -659,7 +678,7 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                 <span class="step-bar" id="stepBar">
                     <button id="btnContinue" class="step-btn" title="Continue (F5)">&#9205;</button>
                     <button id="btnPause" class="step-btn" title="Pause" hidden>&#9208;</button>
-                    <button id="btnStepOver" class="step-btn" title="Step Over (F10)">&#10559;</button>
+                    <button id="btnStepOver" class="step-btn" title="Step Over (F10)">&#8631;</button>
                     <button id="btnStepInto" class="step-btn" title="Step Into (F11)">&#8595;</button>
                     <button id="btnStepOut" class="step-btn" title="Step Out (Shift+F11)">&#8593;</button>
                 </span>
