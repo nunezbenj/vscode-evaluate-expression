@@ -11,7 +11,8 @@ export type WebviewToExtension =
     | { command: "modeChanged"; mode: EvalMode }
     | { command: "contentChanged"; code: string }
     | { command: "getState" }
-    | { command: "getResultChildren"; ref: number; requestId: string; start?: number; count?: number };
+    | { command: "getResultChildren"; ref: number; requestId: string; start?: number; count?: number }
+    | { command: "debugAction"; action: "continue" | "pause" | "stepOver" | "stepInto" | "stepOut" };
 
 // Extension -> Webview messages
 export type ExtensionToWebview =
@@ -24,6 +25,7 @@ export type ExtensionToWebview =
     | { type: "state"; watches: WatchItem[]; history: string[]; lastMode?: EvalMode; lastCode?: string
     settings?: { autoModeSwitch: boolean; smartPaste: boolean };
 }
+    | { type: "debugRunState"; state: "stopped" | "running" }
     | { type: "resultChildren"; requestId: string; ref: number; children?: { name: string; value: string; ref: number; indexed?: number; named?: number }[]; error?: string };
 
 export interface WatchItem {

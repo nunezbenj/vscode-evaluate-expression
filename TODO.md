@@ -5,11 +5,6 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
 
 ## Next (1.5.0 candidates)
 
-- [ ] **Step controls in the panel** — step over/into/out + continue buttons in
-      the Evaluate panel itself, so a detached floating window works as a
-      debugging HUD without ever touching the main window (trivial to trigger:
-      `workbench.action.debug.stepOver` etc.; UX is the work). Pairs well with
-      documenting `debug.focusWindowOnBreak: false` for floating-window users.
 
 - [ ] **Clickable history** — dropdown or list of previous evaluations (with
       preview) instead of only Alt+Up/Down cycling. Consider pinning favorites.
@@ -30,6 +25,10 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
       view (would replace the goto workaround; see refreshVariablesPanel in
       src/dap.ts for why no API exists today)
 - [ ] Localization of panel strings
+
+## Done in 1.6.0
+
+- [x] Step controls in the panel (Continue/Pause, Over/Into/Out), run-state aware
 
 ## Done in 1.5.0
 

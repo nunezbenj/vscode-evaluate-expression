@@ -4,7 +4,11 @@
 
 A VS Code / Cursor extension that provides a **multi-line Evaluate Expression panel** for debugging, inspired by PyCharm's Evaluate Expression dialog.
 
-## What's New in 1.5.0 🎉
+## What's New in 1.6.0 🎉
+
+- **Step controls in the panel** — Continue/Pause, Step Over, Step Into, and Step Out buttons live next to the mode toggle. Detach the panel into a floating window and it becomes a full **debugging HUD**: evaluate, inspect the result tree, step, watch everything refresh — without ever touching the main window. Buttons enable and disable with the debugger's run state.
+
+## Previously in 1.5.x
 
 - **Structured result tree** — results with structure (dicts, lists, objects) render as an **expandable tree**: click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. Finally, a big place to explore objects instead of the cramped Variables sidebar.
 - **Program output in the Result panel** *(since 1.4.2)* — `print()` and stderr from your evaluated code appear right above the result, in every console mode. No more keeping the Debug Console open alongside.
@@ -136,6 +140,9 @@ npm run compile
 - A debug adapter that supports the DAP `evaluate` request (e.g., Python + debugpy)
 
 ## Changelog
+
+### v1.6.0
+- **New:** **Step controls in the panel** — Continue/Pause and Step Over/Into/Out buttons in the panel header, state-aware (steps disabled while running; Continue swaps to Pause). Completes the floating-window debugging HUD
 
 ### v1.5.1
 - Docs-only: marketplace listing updated to the 1.5.0 What's New; support dialogue formatted as a chat

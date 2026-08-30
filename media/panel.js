@@ -21225,6 +21225,46 @@
         requestId
       });
     });
+    let runState = "stopped";
+    const btnContinue = document.getElementById("btnContinue");
+    const btnPause = document.getElementById("btnPause");
+    const btnStepOver = document.getElementById("btnStepOver");
+    const btnStepInto = document.getElementById("btnStepInto");
+    const btnStepOut = document.getElementById("btnStepOut");
+    const stepBar = document.getElementById("stepBar");
+    function sendDebugAction(action) {
+      vscode.postMessage({ command: "debugAction", action });
+    }
+    if (btnContinue) {
+      btnContinue.addEventListener("click", () => sendDebugAction("continue"));
+    }
+    if (btnPause) {
+      btnPause.addEventListener("click", () => sendDebugAction("pause"));
+    }
+    if (btnStepOver) {
+      btnStepOver.addEventListener("click", () => sendDebugAction("stepOver"));
+    }
+    if (btnStepInto) {
+      btnStepInto.addEventListener("click", () => sendDebugAction("stepInto"));
+    }
+    if (btnStepOut) {
+      btnStepOut.addEventListener("click", () => sendDebugAction("stepOut"));
+    }
+    function applyRunState() {
+      const stopped = runState === "stopped";
+      if (btnContinue) {
+        btnContinue.hidden = !stopped;
+      }
+      if (btnPause) {
+        btnPause.hidden = stopped;
+      }
+      for (const b of [btnStepOver, btnStepInto, btnStepOut]) {
+        if (b) {
+          b.disabled = !stopped;
+        }
+      }
+    }
+    applyRunState();
     document.querySelectorAll('input[name="mode"]').forEach((radio) => {
       radio.addEventListener("change", () => {
         vscode.postMessage({ command: "modeChanged", mode: getMode() });
@@ -21333,7 +21373,14 @@
             historyInfo.textContent = "";
           }
           break;
+        case "debugRunState":
+          runState = msg.state;
+          applyRunState();
+          break;
         case "debugStateChanged":
+          if (stepBar) {
+            stepBar.style.visibility = msg.active ? "visible" : "hidden";
+          }
           if (msg.active) {
             debugStatus.textContent = "Debug session active";
             debugStatus.className = "debug-status active";

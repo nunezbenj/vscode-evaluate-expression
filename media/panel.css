@@ -329,3 +329,22 @@ body.splitter-dragging {
 .tree-loading, .tree-stale, .tree-more { color: var(--vscode-descriptionForeground); font-style: italic; padding-left: 14px; }
 .tree-more { cursor: pointer; }
 .tree-more:hover { color: var(--vscode-foreground); }
+
+/* Debug HUD step controls */
+.step-bar { margin-left: auto; display: inline-flex; gap: 2px; visibility: hidden; }
+.mode-bar { display: flex; align-items: center; }
+.step-btn {
+    padding: 1px 7px;
+    font-size: 13px;
+    line-height: 18px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--vscode-debugIcon-continueForeground, #75beff);
+}
+.step-btn:hover:not(:disabled) {
+    background: var(--vscode-toolbar-hoverBackground, rgba(255,255,255,0.08));
+    border-color: var(--vscode-input-border, transparent);
+}
+.step-btn:disabled { opacity: 0.35; }
+#btnStepOver, #btnStepInto, #btnStepOut { color: var(--vscode-debugIcon-stepOverForeground, #75beff); }
+#btnPause { color: var(--vscode-debugIcon-pauseForeground, #75beff); }

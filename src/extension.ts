@@ -192,6 +192,9 @@ export function activate(context: vscode.ExtensionContext) {
             createDebugAdapterTracker(session) {
                 return {
                     onDidSendMessage(message: { type: string; event?: string; body?: { threadId?: number; category?: string; output?: string } }) {
+                        if (message.type === "event" && message.event === "continued") {
+                            sendToWebview({ type: "debugRunState", state: "running" });
+                        }
                         if (
                             message.type === "event" &&
                             message.event === "output" &&
@@ -201,6 +204,7 @@ export function activate(context: vscode.ExtensionContext) {
                             outputCapture.push(String(message.body?.output ?? ""));
                         }
                         if (message.type === "event" && message.event === "stopped") {
+                            sendToWebview({ type: "debugRunState", state: "stopped" });
                             log("DAP stopped event", { threadId: message.body?.threadId, evaluationInFlight });
                             lastStoppedThreadId = message.body?.threadId;
                             if (!evaluationInFlight) {
@@ -314,6 +318,21 @@ function openPanel(context: vscode.ExtensionContext) {
 
 async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.ExtensionContext) {
     switch (msg.command) {
+        case "debugAction": {
+            const actionMap: Record<string, string> = {
+                continue: "workbench.action.debug.continue",
+                pause: "workbench.action.debug.pause",
+                stepOver: "workbench.action.debug.stepOver",
+                stepInto: "workbench.action.debug.stepInto",
+                stepOut: "workbench.action.debug.stepOut",
+            };
+            const cmd = actionMap[msg.action];
+            if (cmd && vscode.debug.activeDebugSession) {
+                log("debugAction", { action: msg.action });
+                await vscode.commands.executeCommand(cmd);
+            }
+            break;
+        }
         case "getResultChildren": {
             try {
                 const session = vscode.debug.activeDebugSession;
@@ -637,6 +656,13 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                     Expression
                 </label>
                 <span class="history-info" id="historyInfo"></span>
+                <span class="step-bar" id="stepBar">
+                    <button id="btnContinue" class="step-btn" title="Continue (F5)">&#9205;</button>
+                    <button id="btnPause" class="step-btn" title="Pause" hidden>&#9208;</button>
+                    <button id="btnStepOver" class="step-btn" title="Step Over (F10)">&#10559;</button>
+                    <button id="btnStepInto" class="step-btn" title="Step Into (F11)">&#8595;</button>
+                    <button id="btnStepOut" class="step-btn" title="Step Out (Shift+F11)">&#8593;</button>
+                </span>
             </div>
             <div id="codeInput" class="code-editor"></div>
             <div class="button-bar">
