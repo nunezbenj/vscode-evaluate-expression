@@ -137,6 +137,9 @@ npm run compile
 
 ## Changelog
 
+### v1.5.1
+- Docs-only: marketplace listing updated to the 1.5.0 What's New; support dialogue formatted as a chat
+
 ### v1.5.0
 - **New:** **Structured result tree.** Results with structure (dicts, lists, objects) render as an expandable tree in the Result panel — click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. The result object is anchored so the tree stays expandable even after the automatic Variables refresh
 - **Fixed:** The `RuntimeWarning: assigning None to N unbound locals` emitted on every auto-refresh (Python 3.12+) — surfaced as red ERROR lines by warning-capturing loggers — is now suppressed with a filter scoped to that exact message. The underlying behavior is documented under Known Limitations
