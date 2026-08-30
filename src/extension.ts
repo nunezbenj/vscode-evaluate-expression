@@ -10,6 +10,8 @@ import {
     prepareJavaScriptSnippet,
     refreshVariablesPanel,
     cleanPythonTraceback,
+    fetchAnchoredResultRef,
+    fetchResultChildren,
 } from "./dap";
 import { initLog, log, logVerbose, closeLog, showLog, getLogContents, showErrorWithLog } from "./log";
 import { EvaluateCodeLensProvider } from "./codelens";
@@ -255,6 +257,19 @@ function openPanel(context: vscode.ExtensionContext) {
 
 async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.ExtensionContext) {
     switch (msg.command) {
+        case "getResultChildren": {
+            try {
+                const session = vscode.debug.activeDebugSession;
+                if (!session) {
+                    throw new Error("No active debug session");
+                }
+                const children = await fetchResultChildren(session, msg.ref, msg.start, msg.count);
+                sendToWebview({ type: "resultChildren", requestId: msg.requestId, ref: msg.ref, children });
+            } catch {
+                sendToWebview({ type: "resultChildren", requestId: msg.requestId, ref: msg.ref, error: "stale" });
+            }
+            break;
+        }
         case "evaluate": {
             const session = vscode.debug.activeDebugSession;
             if (!session) {
@@ -281,9 +296,9 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 const lang = getLanguageForSessionType(session.type);
                 outputCapture = [];
                 let evalResult;
-                if (msg.mode === "statements" && lang === "python") {
+                if (lang === "python") {
                     const plan = planPythonSnippet(msg.code);
-                    log("evaluate python plan", { kind: plan.kind, hasTail: plan.tail !== undefined });
+                    log("evaluate python plan", { kind: plan.kind, mode: msg.mode, hasTail: plan.tail !== undefined });
                     evalResult = await evaluatePythonPlan(session, plan, frameId);
                 } else if (msg.mode === "statements" && lang === "javascript") {
                     const prepared = prepareJavaScriptSnippet(msg.code);
@@ -307,6 +322,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 const autoRefresh = vscode.workspace
                     .getConfiguration("evaluate")
                     .get<boolean>("autoRefreshVariables", true);
+                let resultNode: import("./dap").ResultNodeInfo | null = null;
                 if (!evalResult.error && autoRefresh) {
                     // The synthetic stopped event makes VS Code focus the
                     // main workbench window (debug.focusWindowOnBreak), which
@@ -325,6 +341,19 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                     } else {
                         setTimeout(() => refreshAllWatches(context), 150);
                     }
+                    if (evalResult.anchored) {
+                        // References die at the goto's stop; re-resolve the
+                        // frame and fetch a fresh reference to the anchored
+                        // result so the tree is expandable after refresh.
+                        const freshFrameId = refreshed
+                            ? await getBestFrameId(session, lastStoppedThreadId)
+                            : frameId;
+                        if (freshFrameId !== undefined) {
+                            resultNode = await fetchAnchoredResultRef(session, freshFrameId);
+                        }
+                    }
+                } else if (!evalResult.error && evalResult.anchored && frameId !== undefined) {
+                    resultNode = await fetchAnchoredResultRef(session, frameId);
                 }
 
                 // Save to history
@@ -355,6 +384,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                     sendToWebview({
                         type: "evaluateResult",
                         output: capturedOutput,
+                        node: resultNode ?? undefined,
                         requestId: msg.requestId,
                         result: evalResult.result ?? "",
                     });

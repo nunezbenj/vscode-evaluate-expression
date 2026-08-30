@@ -122,6 +122,10 @@ npm run compile
 
 ## Changelog
 
+### v1.5.0
+- **New:** **Structured result tree.** Results with structure (dicts, lists, objects) render as an expandable tree in the Result panel — click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. The result object is anchored so the tree stays expandable even after the automatic Variables refresh
+- **Improved:** Expression mode (Python) now runs through the same evaluation engine as Statements mode — it gains output capture, the result tree, and tolerance for statements
+
 ### v1.4.2
 - **New:** **Program output appears in the Result panel.** `print()` and other stdout/stderr produced by your evaluated code is captured and shown above the result value — no need to keep the Debug Console open alongside the panel. Works in every console mode (`internalConsole`, `integratedTerminal`, `externalTerminal`): Python statements capture output in-process, and Debug Console output events are collected as well. (Thanks to the first user feedback!)
 

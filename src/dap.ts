@@ -285,6 +285,9 @@ export interface EvalResult {
     error?: string;
     /** stdout/stderr captured during the evaluation (Python direct path) */
     output?: string;
+    /** true when the result object is anchored on builtins.__eval_last__
+     * and a structured reference can be fetched (Python direct path) */
+    anchored?: boolean;
 }
 
 function formatExecResult(result: string | undefined): string {
@@ -324,14 +327,15 @@ export function buildPythonOutputHarness(body: string): string {
         "        pass\n" +
         "    with __ectx.redirect_stdout(__ebuf), __ectx.redirect_stderr(__ebuf):\n" +
         "        if __ecode is not None:\n" +
-        "            __eres = repr(eval(__ecode))\n" +
+        "            __ebi.__eval_last__ = eval(__ecode)\n" +
+        "            __eres = repr(__ebi.__eval_last__)\n" +
         "        else:\n" +
         "            exec(compile(" + lit + ", '<evaluate>', 'exec'))\n" +
         "finally:\n" +
         "    __eout = __ebuf.getvalue()\n" +
         "    if len(__eout) > 100000:\n" +
         "        __eout = __eout[:100000] + '\\n...[output truncated]'\n" +
-        "    __ebi.__eval_payload__ = __ejson.dumps([__eout, __eres])\n" +
+        "    __ebi.__eval_payload__ = __ejson.dumps([__eout, __eres, __ecode is not None])\n" +
         "    del __ebuf, __eio, __ectx, __ebi, __ejson, __eres, __ecode, __eout\n"
     );
 }
@@ -348,8 +352,8 @@ export function stripHarnessFrames(errorText: string): string {
 async function fetchAndClearHarnessPayload(
     session: vscode.DebugSession,
     frameId: number
-): Promise<{ output: string; valueRepr: string | null }> {
-    const empty = { output: "", valueRepr: null };
+): Promise<{ output: string; valueRepr: string | null; anchored: boolean }> {
+    const empty = { output: "", valueRepr: null, anchored: false };
     try {
         const resp = await session.customRequest("evaluate", {
             expression:
@@ -372,12 +376,13 @@ async function fetchAndClearHarnessPayload(
             return empty;
         }
         const parsed = JSON.parse(Buffer.from(b64, "base64").toString("utf-8"));
-        if (!Array.isArray(parsed) || parsed.length !== 2) {
+        if (!Array.isArray(parsed) || parsed.length < 2) {
             return empty;
         }
         return {
             output: typeof parsed[0] === "string" ? parsed[0] : "",
             valueRepr: typeof parsed[1] === "string" ? parsed[1] : null,
+            anchored: parsed[2] === true,
         };
     } catch {
         return empty;
@@ -423,21 +428,101 @@ export async function evaluatePythonPlan(
         }
 
         if (plan.tail !== undefined && plan.tail.trim().length > 0) {
-            log("evaluatePythonPlan: eval tail", { tail: plan.tail });
-            const tailResp = await session.customRequest("evaluate", {
-                expression: plan.tail,
+            log("evaluatePythonPlan: eval tail (anchored)", { tail: plan.tail });
+            // Evaluate once, anchoring the live object on builtins so a
+            // structured reference stays obtainable even after our goto
+            // refresh invalidates DAP references (side effects run once).
+            await session.customRequest("evaluate", {
+                expression: "setattr(__import__('builtins'), '__eval_last__', (" + plan.tail + "))",
                 frameId,
                 context: "repl",
             });
-            return { result: formatExecResult(tailResp?.result), output: capturedOutput };
+            const tailResp = await session.customRequest("evaluate", {
+                expression: "__import__('builtins').__eval_last__",
+                frameId,
+                context: "repl",
+            });
+            return { result: formatExecResult(tailResp?.result), output: capturedOutput, anchored: true };
         }
 
-        return { result: formatExecResult(bodyValueRepr ?? undefined), output: capturedOutput };
+        return {
+            result: formatExecResult(bodyValueRepr ?? undefined),
+            output: capturedOutput,
+            anchored: bodyValueRepr !== null,
+        };
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         // A tail that raises must not discard output the body captured.
         return { error: stripHarnessFrames(msg), output: capturedOutputSoFar };
     }
+}
+
+export interface ResultNodeInfo {
+    ref: number;
+    valueText: string;
+    indexed?: number;
+    named?: number;
+}
+
+/**
+ * Fetches a fresh DAP variablesReference for the anchored result object.
+ * Called after the auto-refresh's synthetic stop (which invalidates all
+ * prior references); evaluating builtins.__eval_last__ yields a reference
+ * bound to the same object, valid until the next stop.
+ */
+export async function fetchAnchoredResultRef(
+    session: vscode.DebugSession,
+    frameId: number
+): Promise<ResultNodeInfo | null> {
+    try {
+        const resp = await session.customRequest("evaluate", {
+            expression: "__import__('builtins').__eval_last__",
+            frameId,
+            context: "repl",
+        });
+        const ref = Number(resp?.variablesReference ?? 0);
+        if (!ref) {
+            return null;
+        }
+        return {
+            ref,
+            valueText: String(resp?.result ?? ""),
+            indexed: resp?.indexedVariables,
+            named: resp?.namedVariables,
+        };
+    } catch {
+        return null;
+    }
+}
+
+export interface ResultChild {
+    name: string;
+    value: string;
+    ref: number;
+    indexed?: number;
+    named?: number;
+}
+
+/** Fetches one page of children for a structured result node. */
+export async function fetchResultChildren(
+    session: vscode.DebugSession,
+    ref: number,
+    start?: number,
+    count?: number
+): Promise<ResultChild[]> {
+    const resp = await session.customRequest("variables", {
+        variablesReference: ref,
+        ...(start !== undefined ? { start } : {}),
+        ...(count !== undefined ? { count } : {}),
+    });
+    const vars: any[] = resp?.variables ?? [];
+    return vars.map((v) => ({
+        name: String(v.name ?? ""),
+        value: String(v.value ?? ""),
+        ref: Number(v.variablesReference ?? 0),
+        indexed: v.indexedVariables,
+        named: v.namedVariables,
+    }));
 }
 
 // Sessions where the goto-based refresh has been observed to fail; skip

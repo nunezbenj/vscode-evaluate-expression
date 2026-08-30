@@ -21299,11 +21299,19 @@
         case "evaluateResult":
           if (msg.requestId === pendingRequestId) {
             lastResultClass = "result-output success";
-            renderEvalOutcome(msg.output, msg.result, "eval-value-success");
+            renderEvalOutcome(msg.output, msg.result, "eval-value-success", msg.node);
             btnEvaluate.disabled = false;
             pendingRequestId = null;
           }
           break;
+        case "resultChildren": {
+          const containerEl = childFetchPending.get(msg.requestId);
+          if (containerEl) {
+            childFetchPending.delete(msg.requestId);
+            renderChildren(containerEl, msg);
+          }
+          break;
+        }
         case "evaluateError":
           if (msg.requestId === pendingRequestId) {
             lastResultText = msg.error;
@@ -21363,12 +21371,127 @@
         resultOutput.className = lastResultClass;
       }
     }
-    function renderEvalOutcome(output, value, valueClass) {
+    let childFetchSeq = 0;
+    const childFetchPending = /* @__PURE__ */ new Map();
+    function typeBadge(node) {
+      if (typeof node.indexed === "number" && node.indexed > 0) {
+        return "[" + node.indexed + "]";
+      }
+      if (typeof node.named === "number" && node.named > 0) {
+        return "{" + node.named + "}";
+      }
+      return "";
+    }
+    function makeTreeNode(labelName, valueText, ref, badge) {
+      const row = document.createElement("div");
+      row.className = "tree-row";
+      const twisty = document.createElement("span");
+      twisty.className = "twisty" + (ref > 0 ? "" : " leaf");
+      twisty.textContent = ref > 0 ? "\u25B8" : "";
+      row.appendChild(twisty);
+      const label = document.createElement("span");
+      label.className = "tree-label";
+      if (labelName !== null) {
+        const nm = document.createElement("span");
+        nm.className = "tree-name";
+        nm.textContent = labelName + " = ";
+        label.appendChild(nm);
+      }
+      if (badge) {
+        const b = document.createElement("span");
+        b.className = "tree-badge";
+        b.textContent = badge + " ";
+        label.appendChild(b);
+      }
+      const val = document.createElement("span");
+      val.className = "tree-value";
+      val.textContent = valueText;
+      label.appendChild(val);
+      row.appendChild(label);
+      const wrap = document.createElement("div");
+      wrap.className = "tree-node";
+      wrap.appendChild(row);
+      if (ref > 0) {
+        const childrenEl = document.createElement("div");
+        childrenEl.className = "tree-children";
+        childrenEl.hidden = true;
+        wrap.appendChild(childrenEl);
+        let loaded = false;
+        row.addEventListener("click", () => {
+          const open = !childrenEl.hidden;
+          if (open) {
+            childrenEl.hidden = true;
+            twisty.textContent = "\u25B8";
+            return;
+          }
+          childrenEl.hidden = false;
+          twisty.textContent = "\u25BE";
+          if (!loaded) {
+            loaded = true;
+            requestChildren(ref, childrenEl, 0);
+          }
+        });
+      }
+      return wrap;
+    }
+    function requestChildren(ref, containerEl, start) {
+      const reqId = "children-" + ++childFetchSeq;
+      childFetchPending.set(reqId, containerEl);
+      const loadingEl = document.createElement("div");
+      loadingEl.className = "tree-loading";
+      loadingEl.textContent = "loading\u2026";
+      containerEl.appendChild(loadingEl);
+      vscode.postMessage({ command: "getResultChildren", ref, requestId: reqId, start, count: 100 });
+    }
+    function renderChildren(containerEl, msg) {
+      const loading = containerEl.querySelector(".tree-loading");
+      if (loading) {
+        loading.remove();
+      }
+      if (msg.error || !msg.children) {
+        const err = document.createElement("div");
+        err.className = "tree-stale";
+        err.textContent = "(no longer available \u2014 re-evaluate to expand)";
+        containerEl.appendChild(err);
+        return;
+      }
+      for (const c of msg.children) {
+        containerEl.appendChild(makeTreeNode(c.name, c.value, c.ref, typeBadge(c)));
+      }
+      if (msg.children.length === 100) {
+        const moreEl = document.createElement("div");
+        moreEl.className = "tree-more";
+        moreEl.textContent = "\u22EF more";
+        const already = containerEl.querySelectorAll(".tree-node").length;
+        moreEl.addEventListener("click", () => {
+          moreEl.remove();
+          requestChildren(msg.ref, containerEl, already);
+        }, { once: true });
+        containerEl.appendChild(moreEl);
+      }
+    }
+    function renderEvalOutcome(output, value, valueClass, node) {
       resultOutput.className = "result-output";
+      resultOutput.textContent = "";
       if (output && output.length > 0) {
-        resultOutput.innerHTML = '<span class="eval-output">' + escapeHtml(output.replace(/\n$/, "")) + '</span>\n<span class="eval-sep">\u2500\u2500\u2500</span>\n<span class="' + valueClass + '">' + escapeHtml(value) + "</span>";
+        const outEl = document.createElement("span");
+        outEl.className = "eval-output";
+        outEl.textContent = output.replace(/\n$/, "");
+        resultOutput.appendChild(outEl);
+        resultOutput.appendChild(document.createTextNode("\n"));
+        const sepEl = document.createElement("span");
+        sepEl.className = "eval-sep";
+        sepEl.textContent = "\u2500\u2500\u2500";
+        resultOutput.appendChild(sepEl);
+        resultOutput.appendChild(document.createTextNode("\n"));
+      }
+      if (node && node.ref > 0) {
+        resultOutput.appendChild(makeTreeNode(null, node.valueText || value, node.ref, typeBadge(node)));
       } else {
-        resultOutput.innerHTML = '<span class="' + valueClass + '">' + escapeHtml(value) + "</span>";
+        const valEl = document.createElement("span");
+        valEl.className = valueClass;
+        valEl.textContent = value;
+        resultOutput.appendChild(valEl);
       }
       lastResultText = (output ? output + "\n" : "") + value;
     }

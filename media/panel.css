@@ -313,3 +313,19 @@ body.splitter-dragging {
     color: var(--vscode-errorForeground, #f48771);
     white-space: pre-wrap;
 }
+
+/* Structured result tree */
+.tree-node { font-family: var(--vscode-editor-font-family, monospace); }
+.tree-row { cursor: default; display: flex; align-items: baseline; padding: 1px 0; }
+.tree-row:hover { background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04)); }
+.twisty { width: 14px; flex: none; color: var(--vscode-descriptionForeground); cursor: pointer; user-select: none; }
+.twisty.leaf { cursor: default; }
+.tree-node .tree-row { cursor: pointer; }
+.tree-children { margin-left: 14px; border-left: 1px solid var(--vscode-tree-indentGuidesStroke, rgba(255,255,255,0.08)); padding-left: 4px; }
+.tree-name { color: var(--vscode-symbolIcon-variableForeground, #75beff); }
+.tree-badge { color: var(--vscode-descriptionForeground); opacity: 0.85; }
+.tree-value { color: var(--vscode-terminal-ansiGreen, #4ec94e); white-space: pre-wrap; word-break: break-all; }
+.tree-children .tree-value { color: var(--vscode-editor-foreground); }
+.tree-loading, .tree-stale, .tree-more { color: var(--vscode-descriptionForeground); font-style: italic; padding-left: 14px; }
+.tree-more { cursor: pointer; }
+.tree-more:hover { color: var(--vscode-foreground); }

@@ -11,10 +11,6 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
       `workbench.action.debug.stepOver` etc.; UX is the work). Pairs well with
       documenting `debug.focusWindowOnBreak: false` for floating-window users.
 
-- [ ] **Result tree explorer** — render results with a `variablesReference` as an
-      expandable tree (DAP `variables` requests on expand), like PyCharm's result
-      pane / the Variables view, instead of a flat string. Biggest remaining gap
-      vs PyCharm. Medium effort, webview + DAP work.
 - [ ] **Clickable history** — dropdown or list of previous evaluations (with
       preview) instead of only Alt+Up/Down cycling. Consider pinning favorites.
 - [ ] **Frame picker** — evaluate in a selected stack frame, not always the top
@@ -34,6 +30,12 @@ User-facing requests and bugs live in [GitHub Issues](https://github.com/nunezbe
       view (would replace the goto workaround; see refreshVariablesPanel in
       src/dap.ts for why no API exists today)
 - [ ] Localization of panel strings
+
+## Done in 1.5.0
+
+- [x] Structured result tree — anchored on builtins.__eval_last__ so references
+      survive the goto refresh; lazy child fetch via DAP variables, 100-per-page
+- [x] Python expression mode unified onto the planner/harness engine
 
 ## Done in 1.4.2
 
