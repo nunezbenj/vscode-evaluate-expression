@@ -1,8 +1,8 @@
 # Getting Help
 
-> — *"Hey, the extension crashed."*
-> — *"Run **Evaluate: Copy Diagnostic Report** from the Command Palette and paste it into an issue — no need to reproduce."*
-> — *"But I already reloaded the window..."*
+> — *"Hey, the extension crashed."*  
+> — *"Run **Evaluate: Copy Diagnostic Report** from the Command Palette and paste it into an issue — no need to reproduce."*  
+> — *"But I already reloaded the window..."*  
 > — *"Doesn't matter — **Evaluate: Open Previous Session Logs**, grab the file from the crashed session."*
 
 That's the whole workflow. Logs are always recording and persist across

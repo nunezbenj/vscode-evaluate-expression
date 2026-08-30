@@ -4,17 +4,14 @@
 
 A VS Code / Cursor extension that provides a **multi-line Evaluate Expression panel** for debugging, inspired by PyCharm's Evaluate Expression dialog.
 
-## What's New in 1.4.0 🎉
+## What's New in 1.5.0 🎉
 
-The two biggest limitations are gone, plus a full UX polish pass:
+- **Structured result tree** — results with structure (dicts, lists, objects) render as an **expandable tree**: click to drill into nested data, PyCharm style, with lazy loading and paging for large collections. Finally, a big place to explore objects instead of the cramped Variables sidebar.
+- **Program output in the Result panel** *(since 1.4.2)* — `print()` and stderr from your evaluated code appear right above the result, in every console mode. No more keeping the Debug Console open alongside.
+- **Crash-proof diagnostics** — logs persist across window reloads; one command copies a full diagnostic report for bug filing.
+- Plus: the `RuntimeWarning` noise from auto-refresh is silenced, and Expression mode gained the full evaluation engine.
 
-- **New variables persist** — `x = compute()` in Statements mode now shows up in the Variables panel, exactly like PyCharm. No more function-wrapper scoping surprises.
-- **Variables panel auto-refreshes** after every evaluation — mutations and new variables appear immediately, no stepping required.
-- **One-click access** — a calculator button in the debug toolbar opens the panel.
-- **Smart paste** — code copied from inside a function is auto-dedented and just runs.
-- **Auto-mode** — multi-line code switches to Statements mode automatically.
-- **Cleaner errors** — debugger-internal frames are hidden from tracebacks.
-- **Resizable layout** — drag the divider between code and Result; separate Clear Code / Clear Result buttons; shortcut hints in the empty editor.
+*(Coming from 1.3.0? See the changelog below — 1.4.0 fixed the two big ones: new variables persist in the paused frame, and the Variables panel auto-refreshes.)*
 
 ## Why This Extension?
 
@@ -92,9 +89,9 @@ For **JavaScript/TypeScript**, code runs like in the DevTools console: the last 
 
 ## Troubleshooting & Reporting Bugs
 
-> — *"Hey, the extension crashed."*
-> — *"Run **Evaluate: Copy Diagnostic Report** and paste it into an issue — no need to reproduce."*
-> — *"But I already reloaded the window..."*
+> — *"Hey, the extension crashed."*  
+> — *"Run **Evaluate: Copy Diagnostic Report** and paste it into an issue — no need to reproduce."*  
+> — *"But I already reloaded the window..."*  
 > — *"Doesn't matter — **Evaluate: Open Previous Session Logs**, grab the file from the crashed session."*
 
 That's the whole workflow. The extension always logs its activity — you do **not** need to reproduce a problem to report it.
