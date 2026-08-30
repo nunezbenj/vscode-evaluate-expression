@@ -23,9 +23,9 @@ VS Code's Debug Console only supports single-line expressions. If you're coming 
 
 ## Screenshot
 
-Evaluating a multi-line snippet while paused at a breakpoint: the new variable `total` **persists in the paused frame and appears in the Variables panel immediately**, and the trailing expression's value is shown as the result.
+Paused at a breakpoint, evaluating `tok`: the object expands into its attributes in the **result tree**, the **step controls** sit in the panel header, and the panel's editor group is **locked** (lock icon) so stepped-into files open beside your code. New variables you create persist in the paused frame and appear in the Variables panel immediately.
 
-![Evaluate Expression panel: new variable persisted into the Variables panel](images/screenshot-floating.png)
+![Evaluate Expression panel with result tree, step controls, and locked group](images/screenshot-floating.png)
 
 > **Tip:** For a PyCharm-style floating dialog, detach the panel into its own window — see [Floating Window](#tip-floating-window).
 
