@@ -148,6 +148,9 @@ npm run compile
 
 ## Changelog
 
+### v1.6.1
+- **Fixed:** In a detached (floating) HUD window, files the debugger reveals on any stop (Step Over/Into/Out, breakpoints — from the panel's buttons or the debug toolbar) no longer open *inside* the floating window; they're moved to your code group, keeping the HUD to just the panel. The editor-group lock only covered docked panels; floating windows are separate windows and needed explicit handling. (Diagnosed with the extension's own diagnostic reports.)
+
 ### v1.6.0
 - **Docs:** Floating-window HUD setup recommendations — pin the window always-on-top and set `debug.focusWindowOnBreak: false`
 - **New:** The panel's editor group is **locked** on open (`evaluate.lockPanelGroup`), so files the debugger reveals on Step Into open in your code group instead of piling up next to the panel — one group for the HUD, one for code

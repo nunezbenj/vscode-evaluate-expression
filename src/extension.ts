@@ -22,6 +22,74 @@ let panel: vscode.WebviewPanel | undefined;
 // panel's focus when that event lands — the fixed-delay approach raced the
 // event and lost when evaluations were fast.
 let revealPanelOnStopUntil = 0;
+let evictEditorFromPanelGroupUntil = 0;
+
+/**
+ * If the active text editor is a real file sharing the Evaluate panel's
+ * view column, move it out to a code group. This handles Step Into
+ * revealing a previously-unopened file inside the panel's group —
+ * including a detached (floating) panel window, where the group lock does
+ * not apply because the floating window is a separate window. The panel
+ * itself is a webview, not a text editor, so it is never the target.
+ */
+function findPanelTabGroup(): vscode.TabGroup | undefined {
+    for (const group of vscode.window.tabGroups.all) {
+        for (const tab of group.tabs) {
+            if (tab.input instanceof vscode.TabInputWebview && tab.input.viewType.includes("evaluateExpression")) {
+                return group;
+            }
+        }
+    }
+    return undefined;
+}
+
+/**
+ * Design rule: debugger-revealed files always belong in a code group; the
+ * Evaluate panel's group (docked, or the floating HUD window) stays
+ * panel-only. Structural check via the Tab Groups API — independent of
+ * focus and timing (activeTextEditor is undefined while the panel has
+ * focus, which defeated earlier attempts): find the group holding the
+ * panel tab; any file tabs in it are moved to a code group and closed
+ * there. Idempotent, so it is safe to call repeatedly after a step.
+ */
+async function evictEditorFromPanelGroup() {
+    try {
+        if (!panel) {
+            return;
+        }
+        const panelGroup = findPanelTabGroup();
+        if (!panelGroup) {
+            return;
+        }
+        const strays = panelGroup.tabs.filter((t) => t.input instanceof vscode.TabInputText);
+        logVerbose("panel group tabs", {
+            column: panelGroup.viewColumn,
+            tabs: panelGroup.tabs.map((t) => t.label),
+            strays: strays.length,
+        });
+        if (strays.length === 0) {
+            return;
+        }
+        const target =
+            vscode.window.tabGroups.all.find(
+                (g) => g !== panelGroup && g.tabs.some((t) => t.input instanceof vscode.TabInputText)
+            )?.viewColumn ?? vscode.ViewColumn.One;
+        for (const tab of strays) {
+            const uri = (tab.input as vscode.TabInputText).uri;
+            log("relocating stray file tab out of panel group", {
+                file: uri.fsPath,
+                from: panelGroup.viewColumn,
+                to: target,
+            });
+            await vscode.window.showTextDocument(uri, { viewColumn: target, preserveFocus: true, preview: tab.isPreview });
+            await vscode.window.tabGroups.close(tab);
+        }
+        panel.reveal(undefined, false);
+    } catch (err: unknown) {
+        log("evictEditorFromPanelGroup error", { error: err instanceof Error ? err.message : String(err) });
+    }
+}
+
 // While an evaluation is running, program output (print etc.) travels as
 // DAP "output" events to the Debug Console, not in the evaluate response.
 // Capture those events here so the panel can show output next to the
@@ -205,6 +273,21 @@ export function activate(context: vscode.ExtensionContext) {
                         }
                         if (message.type === "event" && message.event === "stopped") {
                             sendToWebview({ type: "debugRunState", state: "stopped" });
+                            if (panel) {
+                                evictEditorFromPanelGroupUntil = 0;
+                                // Any stop can reveal a file into the panel's
+                                // group (a detached HUD is its own window, so
+                                // the group lock can't protect it), whether the
+                                // step came from our panel or the floating
+                                // window's own toolbar. Design rule: revealed
+                                // files always go to a code group. Structural
+                                // check is idempotent; run it at several settle
+                                // points to absorb Remote-SSH reveal latency and
+                                // a late re-reveal by the debugger.
+                                for (const delay of [150, 500, 1200, 2500, 4000]) {
+                                    setTimeout(() => evictEditorFromPanelGroup(), delay);
+                                }
+                            }
                             log("DAP stopped event", { threadId: message.body?.threadId, evaluationInFlight });
                             lastStoppedThreadId = message.body?.threadId;
                             if (!evaluationInFlight) {
@@ -347,6 +430,12 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
                 // short to avoid surprising focus grabs later.
                 if (panel?.active && msg.action !== "pause") {
                     revealPanelOnStopUntil = Date.now() + (msg.action === "continue" ? 3000 : 5000);
+                    // Step Into may reveal a new file into the panel's group;
+                    // arm eviction for steps (not continue, which rarely
+                    // reveals and may run long).
+                    if (msg.action !== "continue") {
+                        evictEditorFromPanelGroupUntil = Date.now() + 5000;
+                    }
                 }
                 await vscode.commands.executeCommand(cmd);
             }
