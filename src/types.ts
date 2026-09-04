@@ -20,7 +20,7 @@ export type ExtensionToWebview =
     | { type: "evaluateError"; requestId: string; error: string; output?: string }
     | { type: "watchesUpdated"; watches: WatchItem[] }
     | { type: "historyEntry"; code: string; index: number; total: number }
-    | { type: "debugStateChanged"; active: boolean }
+    | { type: "debugStateChanged"; active: boolean; name?: string }
     | { type: "languageChanged"; language: string }
     | { type: "state"; watches: WatchItem[]; history: string[]; lastMode?: EvalMode; lastCode?: string
     settings?: { autoModeSwitch: boolean; smartPaste: boolean };

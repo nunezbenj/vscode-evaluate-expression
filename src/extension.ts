@@ -241,7 +241,7 @@ export function activate(context: vscode.ExtensionContext) {
                 name: session?.name,
                 evaluationInFlight,
             });
-            sendToWebview({ type: "debugStateChanged", active: !!session });
+            sendToWebview({ type: "debugStateChanged", active: !!session, name: session?.name });
             if (session) {
                 sendToWebview({
                     type: "languageChanged",
@@ -397,6 +397,7 @@ function openPanel(context: vscode.ExtensionContext) {
     sendToWebview({
         type: "debugStateChanged",
         active: !!vscode.debug.activeDebugSession,
+        name: vscode.debug.activeDebugSession?.name,
     });
 
     const activeSession = vscode.debug.activeDebugSession;
@@ -670,6 +671,7 @@ async function handleWebviewMessage(msg: WebviewToExtension, context: vscode.Ext
             sendToWebview({
                 type: "debugStateChanged",
                 active: !!vscode.debug.activeDebugSession,
+                name: vscode.debug.activeDebugSession?.name,
             });
             const currentSession = vscode.debug.activeDebugSession;
             if (currentSession) {
@@ -733,6 +735,7 @@ function sendToWebview(msg: ExtensionToWebview) {
 function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string {
     const mediaPath = path.join(extensionPath, "media");
     const cssUri = webview.asWebviewUri(vscode.Uri.file(path.join(mediaPath, "panel.css")));
+    const codiconUri = webview.asWebviewUri(vscode.Uri.file(path.join(mediaPath, "codicons", "codicon.css")));
     const jsUri = webview.asWebviewUri(vscode.Uri.file(path.join(mediaPath, "panel.js")));
     const nonce = getNonce();
 
@@ -742,7 +745,8 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-          content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+          content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+    <link rel="stylesheet" href="${codiconUri}">
     <link rel="stylesheet" href="${cssUri}">
     <title>Evaluate Expression</title>
 </head>
@@ -750,7 +754,11 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
     <div class="container">
         <div class="toolbar">
             <span class="title">Evaluate Expression</span>
-            <span class="debug-status" id="debugStatus">No debug session</span>
+            <span class="debug-status" id="debugStatus" title="Debugger state">
+                <i class="codicon codicon-circle-filled status-dot"></i>
+                <span class="status-text">No debug session</span>
+                <span class="status-name"></span>
+            </span>
         </div>
 
         <div class="editor-section">
@@ -765,11 +773,11 @@ function getWebviewHtml(webview: vscode.Webview, extensionPath: string): string 
                 </label>
                 <span class="history-info" id="historyInfo"></span>
                 <span class="step-bar" id="stepBar">
-                    <button id="btnContinue" class="step-btn" title="Continue (F5)">&#9205;</button>
-                    <button id="btnPause" class="step-btn" title="Pause" hidden>&#9208;</button>
-                    <button id="btnStepOver" class="step-btn" title="Step Over (F10)">&#8631;</button>
-                    <button id="btnStepInto" class="step-btn" title="Step Into (F11)">&#8595;</button>
-                    <button id="btnStepOut" class="step-btn" title="Step Out (Shift+F11)">&#8593;</button>
+                    <button id="btnContinue" class="step-btn" title="Continue (F5)"><i class="codicon codicon-debug-continue"></i></button>
+                    <button id="btnPause" class="step-btn" title="Pause" hidden><i class="codicon codicon-debug-pause"></i></button>
+                    <button id="btnStepOver" class="step-btn" title="Step Over (F10)"><i class="codicon codicon-debug-step-over"></i></button>
+                    <button id="btnStepInto" class="step-btn" title="Step Into (F11)"><i class="codicon codicon-debug-step-into"></i></button>
+                    <button id="btnStepOut" class="step-btn" title="Step Out (Shift+F11)"><i class="codicon codicon-debug-step-out"></i></button>
                 </span>
             </div>
             <div id="codeInput" class="code-editor"></div>

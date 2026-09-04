@@ -51,14 +51,29 @@ body {
 }
 
 .debug-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 60%;
+    padding: 1px 8px 1px 6px;
+    border-radius: 10px;
     font-size: 11px;
-    opacity: 0.7;
+    background: var(--vscode-badge-background, rgba(255,255,255,0.08));
+    color: var(--vscode-badge-foreground, inherit);
+}
+.debug-status .status-dot { font-size: 10px; color: var(--vscode-descriptionForeground); }
+.debug-status.paused .status-dot { color: var(--vscode-debugIcon-pauseForeground, #75beff); }
+.debug-status.running .status-dot { color: var(--vscode-debugIcon-continueForeground, #89d185); }
+.debug-status .status-text { font-weight: 600; }
+.debug-status .status-name {
+    opacity: 0.8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.debug-status.active {
-    color: var(--success-fg);
-    opacity: 1;
-}
+/* Fix: display rule on .step-btn must not override the hidden attribute */
+.step-btn[hidden] { display: none; }
 
 .editor-section {
     display: flex;
@@ -334,17 +349,23 @@ body.splitter-dragging {
 .step-bar { margin-left: auto; display: inline-flex; gap: 2px; visibility: hidden; }
 .mode-bar { display: flex; align-items: center; }
 .step-btn {
-    padding: 1px 7px;
-    font-size: 13px;
-    line-height: 18px;
+    padding: 2px 5px;
+    line-height: 16px;
     background: transparent;
     border: 1px solid transparent;
+    border-radius: 3px;
     color: var(--vscode-debugIcon-continueForeground, #75beff);
+    display: inline-flex;
+    align-items: center;
 }
+.step-btn .codicon { font-size: 16px; }
 .step-btn:hover:not(:disabled) {
     background: var(--vscode-toolbar-hoverBackground, rgba(255,255,255,0.08));
     border-color: var(--vscode-input-border, transparent);
 }
 .step-btn:disabled { opacity: 0.35; }
-#btnStepOver, #btnStepInto, #btnStepOut { color: var(--vscode-debugIcon-stepOverForeground, #75beff); }
+#btnContinue { color: var(--vscode-debugIcon-continueForeground, #89d185); }
+#btnStepOver { color: var(--vscode-debugIcon-stepOverForeground, #75beff); }
+#btnStepInto { color: var(--vscode-debugIcon-stepIntoForeground, #75beff); }
+#btnStepOut { color: var(--vscode-debugIcon-stepOutForeground, #75beff); }
 #btnPause { color: var(--vscode-debugIcon-pauseForeground, #75beff); }

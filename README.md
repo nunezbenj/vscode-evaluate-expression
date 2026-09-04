@@ -148,6 +148,10 @@ npm run compile
 
 ## Changelog
 
+### v1.6.2
+- **Improved:** The panel's step controls now use VS Code's own codicon icon set (the same icons as the debug toolbar) in the theme's debug-icon colors, replacing the homemade unicode glyphs
+- **Improved:** The session indicator is now a status pill — colored dot (green running, blue paused), state, and the session name (e.g. which attached process) — instead of plain "Debug session active" text
+
 ### v1.6.1
 - **Fixed:** In a detached (floating) HUD window, files the debugger reveals on any stop (Step Over/Into/Out, breakpoints — from the panel's buttons or the debug toolbar) no longer open *inside* the floating window; they're moved to your code group, keeping the HUD to just the panel. The editor-group lock only covered docked panels; floating windows are separate windows and needed explicit handling. (Diagnosed with the extension's own diagnostic reports.)
 

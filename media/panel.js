@@ -21226,6 +21226,24 @@
       });
     });
     let runState = "stopped";
+    let sessionActive = false;
+    let sessionName = "";
+    function renderStatusPill() {
+      const textEl = debugStatus.querySelector(".status-text");
+      const nameEl = debugStatus.querySelector(".status-name");
+      if (!sessionActive) {
+        debugStatus.className = "debug-status";
+        textEl.textContent = "No debug session";
+        nameEl.textContent = "";
+        nameEl.title = "";
+        return;
+      }
+      const paused = runState === "stopped";
+      debugStatus.className = "debug-status " + (paused ? "paused" : "running");
+      textEl.textContent = paused ? "Paused" : "Running";
+      nameEl.textContent = sessionName ? "\xB7 " + sessionName : "";
+      nameEl.title = sessionName;
+    }
     const btnContinue = document.getElementById("btnContinue");
     const btnPause = document.getElementById("btnPause");
     const btnStepOver = document.getElementById("btnStepOver");
@@ -21376,18 +21394,15 @@
         case "debugRunState":
           runState = msg.state;
           applyRunState();
+          renderStatusPill();
           break;
         case "debugStateChanged":
           if (stepBar) {
             stepBar.style.visibility = msg.active ? "visible" : "hidden";
           }
-          if (msg.active) {
-            debugStatus.textContent = "Debug session active";
-            debugStatus.className = "debug-status active";
-          } else {
-            debugStatus.textContent = "No debug session";
-            debugStatus.className = "debug-status";
-          }
+          sessionActive = msg.active;
+          sessionName = msg.name || "";
+          renderStatusPill();
           restoreResult();
           break;
         case "languageChanged":
